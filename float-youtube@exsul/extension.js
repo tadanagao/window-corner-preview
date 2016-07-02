@@ -89,8 +89,9 @@ Preview.prototype = {
             let wins = ws.list_windows()
 
             for (let j = 0, l = wins.length; j < l; j++) {
-                if (wins[j].get_wm_class() === "mpv") {
+                if (wins[j].get_title().search("YouTube") > -1 ) {
                     mpv = wins[j]
+                    break;
                 }
             }
         }
@@ -132,8 +133,8 @@ Preview.prototype = {
     showPreview: function(win) {
         this.removePreview()
 
-        this.preview = new St.Button({ style_class: "mpv-preview" })
-        let th = this.getThumbnail(win, 640)
+        this.preview = new St.Button({ style_class: "youtube-preview" })
+        let th = this.getThumbnail(win, 320)
 
         this.preview.connect( "enter-event"
                             , Lang.bind(this, _ => this.switchCorner(plus1))

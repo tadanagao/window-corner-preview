@@ -1,0 +1,12 @@
+{
+    "description": "Show tiny youtube preview by demand.",
+    "name": "Float youtube preview",
+    "shell-version": [
+        "3.16",
+        "3.18",
+        "3.20"
+    ],
+    "url": "https://github.com/Exsul/float-youtube-for-gnome",
+    "uuid": "float-youtube@exsul",
+    "version": 0
+}
