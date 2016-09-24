@@ -3,22 +3,7 @@
 // License: MIT
 
 const Lang = imports.lang;
-
-const Clutter = imports.gi.Clutter;
-const St = imports.gi.St;
-
 const Main = imports.ui.main;
-
-
-function id(x)
-{
-  return x;
-}
-
-function plus1(n)
-{
-  return n + 1;
-}
 
 
 function init(em)
@@ -107,7 +92,7 @@ Preview.prototype =
   {
     this.despawn_window()
 
-    this.preview = new St.Button({ style_class: "youtube-preview" })
+    this.preview = new imports.gi.St.Button({ style_class: "youtube-preview" })
 
     let th = this.generate_texture(win, 100)
     this.preview.add_actor(th)
@@ -134,7 +119,7 @@ Preview.prototype =
     let wtext = mutw.get_texture()
     let [width, height] = wtext.get_size()
     let scale = Math.min(1.0, size / width, size / height)
-    let th = new Clutter.Clone
+    let th = new imports.gi.Clutter.Clone
     ({
        source: wtext
        , reactive: true
