@@ -8,21 +8,15 @@ const Main = imports.ui.main;
 
 function init(em)
 {
-  return new Preview(em)
+  return new HoppingWindow(em)
 }
 
-function Preview(em)
+function HoppingWindow(em)
 {
-  this.init(em)
 }
 
-Preview.prototype =
+HoppingWindow.prototype =
 {
-  init: function(em)
-  {
-    this.extensionMeta = em
-  },
-
   enable: function()
   {
     this.workspaceSwitchSignal
