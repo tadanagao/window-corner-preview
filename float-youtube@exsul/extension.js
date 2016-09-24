@@ -13,6 +13,7 @@ function init(em)
 
 function HoppingWindow(em)
 {
+  this.corner = 2;
 }
 
 HoppingWindow.prototype =
@@ -91,8 +92,7 @@ HoppingWindow.prototype =
 
     let event = Lang.bind(this, _ => this.switchCorner(increment));
     this.preview.connect("enter-event", event);
-
-    this.switchCorner(1)
+    this.switchCorner()
 
     Main.layoutManager.addChrome(this.preview)
   }
@@ -123,8 +123,6 @@ HoppingWindow.prototype.switchCorner = function(increment)
 {
   if (typeof increment == 'function')
     this.corner = increment(this.corner) % 4
-  else
-    this.corner = increment;
 
 
 
@@ -153,8 +151,8 @@ HoppingWindow.prototype.switchCorner = function(increment)
     ]
     ,
     [
-      drawable_rect[2],
-      drawable_rect[1],
+      drawable_rect[2] - 30,
+      2,
     ]
     ,
     [
