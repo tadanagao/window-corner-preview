@@ -108,40 +108,6 @@ Preview.prototype =
     }
     ,
 
-    // | Takes a function that modifies the corner int
-    // switchCorner :: (Int -> Int) -> IO ()
-    switchCorner: function(f)
-    {
-      return;
-      let g = Main.layoutManager.getWorkAreaForMonitor(0)
-
-      this.corner = f(this.corner) % 4
-      global.log("corner: " + this.corner)
-      switch(this.corner)
-      {
-        case 0:
-          this.posX = g.x + 10
-          this.posY = g.y + 10
-        break
-
-        case 1:
-          this.posX = g.x + g.width - this.preview.get_width() - 10
-          this.posY = g.y + 10
-        break
-
-        case 2:
-          this.posX = g.x + g.width - this.preview.get_width() - 10
-          this.posY = g.y + g.height - this.preview.get_height() - 10
-          break
-
-        case 3:
-          this.posX = g.x + 10
-          this.posY = g.y + g.height - this.preview.get_height() - 10
-          break
-      }
-
-      this.preview.set_position(this.posX, this.posY)
-    },
 
     showPreview: function(win)
     {
@@ -149,14 +115,7 @@ Preview.prototype =
 
       this.preview = new St.Button({ style_class: "youtube-preview" })
       let th = this.getThumbnail(win, 100)
-
-/*
-      this.preview.connect( "enter-event"
-                            , Lang.bind(this, _ => this.switchCorner(plus1))
-                            )
-*/
       this.preview.add_actor(th)
-     // this.switchCorner(id)
 
       Main.layoutManager.addChrome(this.preview)
     },
