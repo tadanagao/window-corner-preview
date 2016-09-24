@@ -33,17 +33,18 @@ function Preview(em)
 
 Preview.prototype =
 {
-    preview: null,
+    //preview: null,
     workspaceSwitchSignal: null,
     overviewShowingSignal: null,
     overviewHidingSignal: null,
-    posX: 0,
-    posY: 0,
-    corner: 0,
-    overview: false,
+    //posX: 0,
+    //posY: 0,
+    //corner: 0,
+    //overview: false,
 
     init: function(em)
     {
+      this.preview = undefined;
       this.extensionMeta = em
     },
 
@@ -117,6 +118,7 @@ Preview.prototype =
     // switchCorner :: (Int -> Int) -> IO ()
     switchCorner: function(f)
     {
+      return;
       let g = Main.layoutManager.getWorkAreaForMonitor(0)
 
       this.corner = f(this.corner) % 4
@@ -154,19 +156,20 @@ Preview.prototype =
       this.preview = new St.Button({ style_class: "youtube-preview" })
       let th = this.getThumbnail(win, 100)
 
+/*
       this.preview.connect( "enter-event"
                             , Lang.bind(this, _ => this.switchCorner(plus1))
                             )
-
+*/
       this.preview.add_actor(th)
-      this.switchCorner(id)
+     // this.switchCorner(id)
 
       Main.layoutManager.addChrome(this.preview)
     },
 
     removePreview: function()
     {
-      if (this.preview !== null)
+      if (this.preview)
       {
         this.preview.destroy()
         this.preview = null
