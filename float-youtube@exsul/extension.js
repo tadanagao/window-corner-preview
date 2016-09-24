@@ -22,35 +22,12 @@ HoppingWindow.prototype =
     this.workspaceSwitchSignal
       = global.screen.connect( "workspace-switched" , Lang.bind(this, this.try_spawn)
                                )
-
-      /*
-    this.overviewHidingSignal
-      =  Main.overview.connect( "hiding"
-                               , Lang.bind(this, this.toggleView, false)
-                               )
-    this.overviewShowingSignal
-      = Main.overview.connect( "showing"
-                               , Lang.bind(this, this.toggleView, true)
-                               )
-      */
   },
 
   disable: function()
   {
     this.despawn_window()
     global.screen.disconnect(this.workspaceSwitchSignal)
-    Main.overview.disconnect(this.overviewHidingSignal)
-    Main.overview.disconnect(this.overviewShowingSignal)
-  },
-
-  toggleView: function(_, active)
-  {
-    this.overview = active
-
-    if (active)
-      this.despawn_window()
-    else
-      this.try_spawn()
   },
 
   try_spawn: function()
