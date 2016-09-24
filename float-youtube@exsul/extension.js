@@ -82,37 +82,31 @@ Preview.prototype =
 
     mpvFloat: function()
     {
-      let mpv = this.getMPVWindow()
+      let mpv = this.find_window("YouTube")
       if (mpv !== null && ! this.overview)
         this.showPreview(mpv)
       else
         this.removePreview()
     },
 
-    getMPVWindow: function()
+    find_window: function(title)
     {
-      let mpv = null
-      let len = global.screen.n_workspaces
+      let active_workspace_index
+        = global.screen.get_active_workspace_index();
 
-      for (let i = 0; i < len; i++)
-      {
-        if (global.screen.get_active_workspace_index() === i)
-          continue;
+      let active_workspace
+        = global.screen.get_workspace_by_index(active_workspace_index);
 
-        let ws = global.screen.get_workspace_by_index(i)
-        let wins = ws.list_windows()
+      let windows
+        = active_workspace.list_windows();
 
-        for (let j = 0, l = wins.length; j < l; j++) {
-          if (wins[j].get_title().search("YouTube") > -1 )
-          {
-            mpv = wins[j]
-            break;
-          }
-        }
-      }
+      for (let i in windows)
+        if (windows[i].get_title().search(title) > -1)
+          return windows[i];
 
-      return mpv;
-    },
+      return null;
+    }
+    ,
 
     // | Takes a function that modifies the corner int
     // switchCorner :: (Int -> Int) -> IO ()
