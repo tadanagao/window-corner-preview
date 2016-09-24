@@ -32,11 +32,11 @@ HoppingWindow.prototype =
   ,
   try_spawn: function()
   {
-    let mpv = this.find_window("YouTube")
-    if (mpv !== null && ! this.overview)
-      this.spawn_window(mpv)
-    else
-      this.despawn_window()
+    this.despawn_window()
+
+    let target = this.find_window("YouTube")
+    if (target)
+      this.spawn_window(target)
   }
   ,
   find_window: function(title)
