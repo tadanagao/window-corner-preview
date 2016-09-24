@@ -41,20 +41,29 @@ HoppingWindow.prototype =
   ,
   find_window: function(title)
   {
+    let workspaces_count = global.screen.n_workspaces;
+
     let active_workspace_index
       = global.screen.get_active_workspace_index();
 
-    let active_workspace
-      = global.screen.get_workspace_by_index(active_workspace_index);
+    for (let i = 0; i < workspaces_count; i++)
+      if (i != active_workspace_index)
+      {
+        let workspace
+          = global.screen.get_workspace_by_index(i);
 
+        return this.find_window_in_workspace(workspace, title);
+      }
+  }
+  ,
+  find_window_in_workspace: function(workspace, title)
+  {
     let windows
-      = active_workspace.list_windows();
+      = workspace.list_windows();
 
     for (let i in windows)
       if (windows[i].get_title().search(title) > -1)
         return windows[i];
-
-    return null;
   }
   ,
   despawn_window: function()
@@ -72,7 +81,7 @@ HoppingWindow.prototype =
 
     this.preview = new imports.gi.St.Button({ style_class: "youtube-preview" })
 
-    let th = this.generate_texture(win, 100)
+    let th = this.generate_texture(win, 150)
     this.preview.add_actor(th)
 
     Main.layoutManager.addChrome(this.preview)
