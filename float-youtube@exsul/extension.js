@@ -80,9 +80,18 @@ HoppingWindow.prototype =
     this.despawn_window()
 
     this.preview = new imports.gi.St.Button({ style_class: "youtube-preview" })
-
     let th = this.generate_texture(win, 150)
     this.preview.add_actor(th)
+
+
+    function increment(i)
+    {
+      return i + 1;
+    }
+    //let event = Lang.bind(this, _ => this.switchCorner(plus1));
+    //this.preview.connect("enter-event", event);
+
+    this.switchCorner(increment)
 
     Main.layoutManager.addChrome(this.preview)
   }
@@ -108,3 +117,30 @@ HoppingWindow.prototype =
     return th
   }
 }
+
+HoppingWindow.prototype.switchCorner = function(increment)
+{
+  let g = Main.layoutManager.getWorkAreaForMonitor(0)
+
+  let border_size = 0;
+
+  let binding_rect =
+  [
+    [
+      g.x + border_size,
+      g.y + border_size,
+    ],
+    [
+      g.x + g.width - this.preview.get_width() - border_size,
+      g.y + g.height - this.preview.get_height() - border_size,
+    ]
+  ];
+
+  this.corner = increment(this.corner) % 4
+  global.log("corner: " + this.corner)
+
+  this.posX = binding_rect[this.corner >> 1][0];
+  this.posY = binding_rect[this.corner & 1][1];
+
+  this.preview.set_position(this.posX, this.posY);
+};
