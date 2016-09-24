@@ -13,7 +13,6 @@ function init(em)
 
 function HoppingWindow(em)
 {
-  this.corner = -1;
 }
 
 HoppingWindow.prototype =
@@ -93,7 +92,7 @@ HoppingWindow.prototype =
     let event = Lang.bind(this, _ => this.switchCorner(increment));
     this.preview.connect("enter-event", event);
 
-    this.switchCorner(increment)
+    this.switchCorner(1)
 
     Main.layoutManager.addChrome(this.preview)
   }
@@ -122,27 +121,53 @@ HoppingWindow.prototype =
 
 HoppingWindow.prototype.switchCorner = function(increment)
 {
+  if (typeof increment == 'function')
+    this.corner = increment(this.corner) % 4
+  else
+    this.corner = increment;
+
+
+
   let g = Main.layoutManager.getWorkAreaForMonitor(0)
 
   let border_size = 0;
 
-  let binding_rect =
+  let drawable_rect =
   [
-    [
-      g.x + border_size,
-      g.y + border_size,
-    ],
-    [
-      g.x + g.width - this.preview.get_width() - border_size,
-      g.y + g.height - this.preview.get_height() - border_size,
-    ]
+    g.x,
+    g.y,
+    g.x + g.width - this.preview.get_width(),
+    g.y + g.height - this.preview.get_height(),
   ];
 
-  this.corner = increment(this.corner) % 4
+  let points =
+  [
+    [
+      drawable_rect[0],
+      drawable_rect[1],
+    ]
+    ,
+    [
+      drawable_rect[0],
+      drawable_rect[3],
+    ]
+    ,
+    [
+      drawable_rect[2],
+      drawable_rect[1],
+    ]
+    ,
+    [
+      drawable_rect[2],
+      drawable_rect[3],
+    ]
+    ,
+  ];
+
   global.log("corner: " + this.corner)
 
-  this.posX = binding_rect[this.corner >> 1][0];
-  this.posY = binding_rect[this.corner & 1][1];
+  this.posX = points[this.corner][0];
+  this.posY = points[this.corner][1];
 
   this.preview.set_position(this.posX, this.posY);
 };
