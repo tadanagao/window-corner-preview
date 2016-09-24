@@ -3,171 +3,169 @@
 // License: MIT
 
 const Lang = imports.lang;
-
-const Clutter = imports.gi.Clutter;
-const St = imports.gi.St;
-
 const Main = imports.ui.main;
 
 
-function id(x) { return x }
-
-function plus1(n) { return n + 1 }
-
-
-function init(em) {
-    return new Preview(em)
+function init(em)
+{
+  return new HoppingWindow(em)
 }
 
-function Preview(em) {
-    this.init(em)
+function HoppingWindow(em)
+{
+  this.corner = 2;
 }
 
-Preview.prototype = {
-    preview: null,
-    workspaceSwitchSignal: null,
-    overviewShowingSignal: null,
-    overviewHidingSignal: null,
-    posX: 0,
-    posY: 0,
-    corner: 0,
-    overview: false,
+HoppingWindow.prototype =
+{
+  enable: function()
+  {
+    this.workspaceSwitchSignal
+      = global.screen.connect( "workspace-switched" , Lang.bind(this, this.try_spawn)
+                               )
+  }
+  ,
+  disable: function()
+  {
+    this.despawn_window()
+    global.screen.disconnect(this.workspaceSwitchSignal)
+  }
+  ,
+  try_spawn: function()
+  {
+    this.despawn_window()
 
-    init: function(em) {
-        this.extensionMeta = em
-    },
+    let target = this.find_window("YouTube")
+    if (target)
+      this.spawn_window(target)
+  }
+  ,
+  find_window: function(title)
+  {
+    let workspaces_count = global.screen.n_workspaces;
 
-    enable: function() {
-        this.workspaceSwitchSignal =
-            global.screen.connect( "workspace-switched" , Lang.bind(this, this.mpvFloat)
-                                 )
-        this.overviewHidingSignal =
-            Main.overview.connect( "hiding"
-                                 , Lang.bind(this, this.toggleView, false)
-                                 )
-        this.overviewShowingSignal =
-            Main.overview.connect( "showing"
-                                 , Lang.bind(this, this.toggleView, true)
-                                 )
-    },
+    let active_workspace_index
+      = global.screen.get_active_workspace_index();
 
-    disable: function() {
-        this.removePreview()
-        global.screen.disconnect(this.workspaceSwitchSignal)
-        Main.overview.disconnect(this.overviewHidingSignal)
-        Main.overview.disconnect(this.overviewShowingSignal)
-    },
+    for (let i = 0; i < workspaces_count; i++)
+      if (i != active_workspace_index)
+      {
+        let workspace
+          = global.screen.get_workspace_by_index(i);
 
-    toggleView: function(_, active) {
-        this.overview = active
-        if (active) {
-            this.removePreview()
+        return this.find_window_in_workspace(workspace, title);
+      }
+  }
+  ,
+  find_window_in_workspace: function(workspace, title)
+  {
+    let windows
+      = workspace.list_windows();
 
-        } else {
-            this.mpvFloat()
-        }
-    },
+    for (let i in windows)
+      if (windows[i].get_title().search(title) > -1)
+        return windows[i];
+  }
+  ,
+  despawn_window: function()
+  {
+    if (!this.preview)
+      return;
 
-    mpvFloat: function() {
-        let mpv = this.getMPVWindow()
-        if (mpv !== null && ! this.overview) {
-            this.showPreview(mpv)
+    this.preview.destroy()
+    this.preview = null
+  }
+  ,
+  spawn_window: function(win)
+  {
+    this.despawn_window()
 
-        } else {
-            this.removePreview()
-        }
-    },
+    this.preview = new imports.gi.St.Button({ style_class: "youtube-preview" })
+    let th = this.generate_texture(win, 150)
+    this.preview.add_actor(th)
 
-    getMPVWindow: function() {
-        let mpv = null
-        let len = global.screen.n_workspaces
 
-        for (let i = 0; i < len; i++) {
-            if (global.screen.get_active_workspace_index() === i) continue
-
-            let ws = global.screen.get_workspace_by_index(i)
-            let wins = ws.list_windows()
-
-            for (let j = 0, l = wins.length; j < l; j++) {
-                if (wins[j].get_title().search("YouTube") > -1 ) {
-                    mpv = wins[j]
-                    break;
-                }
-            }
-        }
-
-        return mpv
-    },
-
-    // | Takes a function that modifies the corner int
-    // switchCorner :: (Int -> Int) -> IO ()
-    switchCorner: function(f) {
-        let g = Main.layoutManager.getWorkAreaForMonitor(0)
-
-        this.corner = f(this.corner) % 4
-        global.log("corner: " + this.corner)
-        switch(this.corner) {
-            case 0:
-                this.posX = g.x + 10
-                this.posY = g.y + 10
-                break
-
-            case 1:
-                this.posX = g.x + g.width - this.preview.get_width() - 10
-                this.posY = g.y + 10
-                break
-
-            case 2:
-                this.posX = g.x + g.width - this.preview.get_width() - 10
-                this.posY = g.y + g.height - this.preview.get_height() - 10
-                break
-
-            case 3:
-                this.posX = g.x + 10
-                this.posY = g.y + g.height - this.preview.get_height() - 10
-        }
-
-        this.preview.set_position(this.posX, this.posY)
-    },
-
-    showPreview: function(win) {
-        this.removePreview()
-
-        this.preview = new St.Button({ style_class: "youtube-preview" })
-        let th = this.getThumbnail(win, 320)
-
-        this.preview.connect( "enter-event"
-                            , Lang.bind(this, _ => this.switchCorner(plus1))
-                            )
-
-        this.preview.add_actor(th)
-        this.switchCorner(id)
-
-        Main.layoutManager.addChrome(this.preview)
-    },
-
-    removePreview: function() {
-        if (this.preview !== null) {
-            this.preview.destroy()
-            this.preview = null
-        }
-    },
-
-    getThumbnail: function(win, size) {
-        let th = null
-        let mutw = win.get_compositor_private()
-
-        if (mutw) {
-            let wtext = mutw.get_texture()
-            let [width, height] = wtext.get_size()
-            let scale = Math.min(1.0, size / width, size / height)
-            th = new Clutter.Clone({ source: wtext
-                                   , reactive: true
-                                   , width: width * scale
-                                   , height: height * scale
-                                   })
-        }
-
-        return th
+    function increment(i)
+    {
+      return i + 1;
     }
+
+    let event = Lang.bind(this, _ => this.switchCorner(increment));
+    this.preview.connect("enter-event", event);
+    this.switchCorner()
+
+    Main.layoutManager.addChrome(this.preview)
+  }
+  ,
+  generate_texture: function(win, size)
+  {
+    let mutw = win.get_compositor_private()
+
+    if (!mutw)
+      return;
+
+    let wtext = mutw.get_texture()
+    let [width, height] = wtext.get_size()
+    let scale = Math.min(1.0, size / width, size / height)
+    let th = new imports.gi.Clutter.Clone
+    ({
+       source: wtext
+       , reactive: true
+       , width: width * scale
+       , height: height * scale
+    });
+
+    return th
+  }
 }
+
+HoppingWindow.prototype.switchCorner = function(increment)
+{
+  if (typeof increment == 'function')
+    this.corner = increment(this.corner) % 4
+
+
+
+  let g = Main.layoutManager.getWorkAreaForMonitor(0)
+
+  let border_size = 0;
+
+  let drawable_rect =
+  [
+    g.x,
+    g.y,
+    g.x + g.width - this.preview.get_width(),
+    g.y + g.height - this.preview.get_height(),
+  ];
+
+  let points =
+  [
+    [
+      drawable_rect[0],
+      drawable_rect[1],
+    ]
+    ,
+    [
+      drawable_rect[0],
+      drawable_rect[3],
+    ]
+    ,
+    [
+      drawable_rect[2] - 30,
+      2,
+    ]
+    ,
+    [
+      drawable_rect[2],
+      drawable_rect[3],
+    ]
+    ,
+  ];
+
+  global.log("corner: " + this.corner)
+
+  this.posX = points[this.corner][0];
+  this.posY = points[this.corner][1];
+
+  this.preview.set_position(this.posX, this.posY);
+};
