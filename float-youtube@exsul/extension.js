@@ -65,7 +65,7 @@ Preview.prototype =
 
     disable: function()
     {
-      this.removePreview()
+      this.despawn_window()
       global.screen.disconnect(this.workspaceSwitchSignal)
       Main.overview.disconnect(this.overviewHidingSignal)
       Main.overview.disconnect(this.overviewShowingSignal)
@@ -75,7 +75,7 @@ Preview.prototype =
     {
       this.overview = active
       if (active)
-        this.removePreview()
+        this.despawn_window()
       else
         this.mpvFloat()
     },
@@ -84,9 +84,9 @@ Preview.prototype =
     {
       let mpv = this.find_window("YouTube")
       if (mpv !== null && ! this.overview)
-        this.showPreview(mpv)
+        this.spawn_window(mpv)
       else
-        this.removePreview()
+        this.despawn_window()
     },
 
     find_window: function(title)
@@ -109,9 +109,9 @@ Preview.prototype =
     ,
 
 
-    showPreview: function(win)
+    spawn_window: function(win)
     {
-      this.removePreview()
+      this.despawn_window()
 
       this.preview = new St.Button({ style_class: "youtube-preview" })
 
@@ -121,13 +121,13 @@ Preview.prototype =
       Main.layoutManager.addChrome(this.preview)
     },
 
-    removePreview: function()
+    despawn_window: function()
     {
-      if (this.preview)
-      {
-        this.preview.destroy()
-        this.preview = null
-      }
+      if (!this.preview)
+        return;
+
+      this.preview.destroy()
+      this.preview = null
     },
 
     generate_texture: function(win, size)
