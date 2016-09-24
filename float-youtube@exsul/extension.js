@@ -22,14 +22,14 @@ HoppingWindow.prototype =
     this.workspaceSwitchSignal
       = global.screen.connect( "workspace-switched" , Lang.bind(this, this.try_spawn)
                                )
-  },
-
+  }
+  ,
   disable: function()
   {
     this.despawn_window()
     global.screen.disconnect(this.workspaceSwitchSignal)
-  },
-
+  }
+  ,
   try_spawn: function()
   {
     let mpv = this.find_window("YouTube")
@@ -37,8 +37,8 @@ HoppingWindow.prototype =
       this.spawn_window(mpv)
     else
       this.despawn_window()
-  },
-
+  }
+  ,
   find_window: function(title)
   {
     let active_workspace_index
@@ -57,8 +57,15 @@ HoppingWindow.prototype =
     return null;
   }
   ,
+  despawn_window: function()
+  {
+    if (!this.preview)
+      return;
 
-
+    this.preview.destroy()
+    this.preview = null
+  }
+  ,
   spawn_window: function(win)
   {
     this.despawn_window()
@@ -69,17 +76,8 @@ HoppingWindow.prototype =
     this.preview.add_actor(th)
 
     Main.layoutManager.addChrome(this.preview)
-  },
-
-  despawn_window: function()
-  {
-    if (!this.preview)
-      return;
-
-    this.preview.destroy()
-    this.preview = null
-  },
-
+  }
+  ,
   generate_texture: function(win, size)
   {
     let mutw = win.get_compositor_private()
