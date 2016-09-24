@@ -41,8 +41,10 @@ Preview.prototype =
   enable: function()
   {
     this.workspaceSwitchSignal
-      = global.screen.connect( "workspace-switched" , Lang.bind(this, this.mpvFloat)
+      = global.screen.connect( "workspace-switched" , Lang.bind(this, this.try_spawn)
                                )
+
+      /*
     this.overviewHidingSignal
       =  Main.overview.connect( "hiding"
                                , Lang.bind(this, this.toggleView, false)
@@ -51,6 +53,7 @@ Preview.prototype =
       = Main.overview.connect( "showing"
                                , Lang.bind(this, this.toggleView, true)
                                )
+      */
   },
 
   disable: function()
@@ -64,13 +67,14 @@ Preview.prototype =
   toggleView: function(_, active)
   {
     this.overview = active
+
     if (active)
       this.despawn_window()
     else
-      this.mpvFloat()
+      this.try_spawn()
   },
 
-  mpvFloat: function()
+  try_spawn: function()
   {
     let mpv = this.find_window("YouTube")
     if (mpv !== null && ! this.overview)
