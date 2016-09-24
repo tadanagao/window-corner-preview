@@ -13,6 +13,7 @@ function init(em)
 
 function HoppingWindow(em)
 {
+  this.corner = -1;
 }
 
 HoppingWindow.prototype =
@@ -88,8 +89,9 @@ HoppingWindow.prototype =
     {
       return i + 1;
     }
-    //let event = Lang.bind(this, _ => this.switchCorner(plus1));
-    //this.preview.connect("enter-event", event);
+
+    let event = Lang.bind(this, _ => this.switchCorner(increment));
+    this.preview.connect("enter-event", event);
 
     this.switchCorner(increment)
 
