@@ -114,7 +114,8 @@ Preview.prototype =
       this.removePreview()
 
       this.preview = new St.Button({ style_class: "youtube-preview" })
-      let th = this.getThumbnail(win, 100)
+
+      let th = this.generate_texture(win, 100)
       this.preview.add_actor(th)
 
       Main.layoutManager.addChrome(this.preview)
@@ -129,25 +130,23 @@ Preview.prototype =
       }
     },
 
-    getThumbnail: function(win, size)
+    generate_texture: function(win, size)
     {
-      let th = null
       let mutw = win.get_compositor_private()
 
-      if (mutw)
-      {
-        let wtext = mutw.get_texture()
-        let [width, height] = wtext.get_size()
-        let scale = Math.min(1.0, size / width, size / height)
-        th = new Clutter.Clone
-        ({
-           source: wtext
-           , reactive: true
-           , width: width * scale
-           , height: height * scale
-        });
+      if (!mutw)
+        return;
 
-      }
+      let wtext = mutw.get_texture()
+      let [width, height] = wtext.get_size()
+      let scale = Math.min(1.0, size / width, size / height)
+      let th = new Clutter.Clone
+      ({
+         source: wtext
+         , reactive: true
+         , width: width * scale
+         , height: height * scale
+      });
 
       return th
     }
