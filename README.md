@@ -1,2 +1,2 @@
-# float-mpv
-GNOME Shell extension that docks Youtube in any corner upon leaving its current workspace
+# Window Corner Preview
+GNOME Shell extension that creates a window preview and anchors it to corner of the screen
