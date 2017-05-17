@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Fabius <fabius@coccidipiume.it>
+// Copyright (c) 2017 Fabius <fabio@mereu.info>
 // Released under the MIT license
 //
 // Window Corner Preview Gnome Extension
@@ -314,6 +314,7 @@ const CWindowCornerPreviewMenu = new Lang.Class({
             if (i > 0) {
                 this.menuWindows.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
             }
+            // Populate window list on submenu
             workspace.windows.forEach(function (window) {
                 let winMenuItem = new PopupMenu.PopupMenuItem(spliceTitle(window.get_title()));
                 winMenuItem.connect("activate", Lang.bind(this, function () {
