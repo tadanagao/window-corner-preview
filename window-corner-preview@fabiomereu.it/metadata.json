@@ -1,14 +1,16 @@
 {
-    "description": "Watch youtube while working\n\n\nOpen YouTube in separate window. Move it to other workspace. (Ctrl+Shift+Alt+Down, or by mouse), return to your workspace (Ctrl+Alt+Up)",
-    "name": "YouTube popup web-browser extention",
-    "shell-version": [
-        "3.16",
-        "3.18",
-        "3.20",
-        "3.22"
-    ],
-    "url": "https://github.com/Exsul/float-youtube-for-gnome",
-    "extension-id": "youtube-float-window",
-    "uuid": "youtube-float-window@exsul",
-    "version": 1
+  "description": "Watch your preferred video or movie while working\nOpen a window preview and pin it to the corner",
+  "extension-id": "window-corner-preview", 
+  "name": "Window Corner Preview",
+  "shell-version": [
+    "3.10",
+    "3.14",
+    "3.16",
+    "3.18",
+    "3.20",
+    "3.22"
+  ],
+  "url": "https://github.com/medenagan/window-corner-preview",
+  "uuid": "window-corner-preview@fabiomereu.it",
+  "version": 1
 }
