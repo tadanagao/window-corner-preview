@@ -10,6 +10,12 @@
 // which was originally forked itself from https://github.com/Shou/float-mpv by "Shou" Benedict Aas
 //
 
+/////// https://github.com/GNOME/gnome-shell/blob/fbc60199bc67de9cdabcb123802142f2ba9e0a5b/js/ui/status/system.js
+////// https://github.com/GNOME/gnome-shell/blob/695bfb96160033be55cfb5ac41c121998f98c328/js/ui/magnifier.js
+///// https://github.com/GNOME/gnome-shell/blob/695bfb96160033be55cfb5ac41c121998f98c328/js/ui/pointerWatcher.js
+
+
+
 // Imports
 const Lang = imports.lang;
 const Main = imports.ui.main;
@@ -53,6 +59,41 @@ function deNormalizeRange(normal, min, max) {
     return (max - min) * normal + min;
 };
 
+function CSignalBundle() {
+  // Helper to disconnect more signals at once
+  var _connections = [];
+
+  this.tryConnect = function (actor, signal, callback) {
+
+    try {
+      var handle = actor.connect(signal, callback);
+      _connections.push({actor: actor, handle: handle});
+    }
+
+    catch(e) {
+      log("CSignalBundle.tryConnect failed", e);
+    }
+  };
+
+  this.disconnectAll = function () {
+
+    for (var i = 0; i < _connections.length; i++) {
+      try {
+        var connection = _connections[i];
+        connection.actor.disconnect(connection.handle);
+        _connections[i] = null;
+      }
+
+      catch(e) {
+        log("CSignalBundle.disconnectAll failed", e);
+      }
+    }
+    _connections = [];
+  };
+
+
+}
+
 // Result: [{windows: [{win1}, {win2}, ...], workspace: {workspace}, index: nWorkspace, isActive: true|false}, ..., {...}]
 // Omit empty (with no windows) workspaces from the array
 function getWorkspaceWindowsArray() {
@@ -94,7 +135,8 @@ function CWindowPreview() {
 
     let _container;
     let _window;
-    let _unmanagedId; let _sizeChangedId;
+
+    let _windowSignals;
 
     // Event handlers
     let _onClick = function (s, event) {
@@ -143,16 +185,14 @@ function CWindowPreview() {
 
         _window = window;
 
+        _windowSignals = new CSignalBundle();
+
         if (zoom) _zoom = zoom;
 
-        _unmanagedId = _window.connect("unmanaged", _onWindowUnmanaged );
-        try {
-            _sizeChangedId = _window.connect("size-changed", _setThumbnail);
-        }
-        catch(e) {
-            // Version 3.10 does not support it
-            log(e);
-        }
+        _windowSignals.tryConnect(_window, "unmanaged", _onWindowUnmanaged);
+        // Version 3.10 does not support size-changed
+        _windowSignals.tryConnect(_window, "size-changed", _setThumbnail);
+
 
         _container = new St.Button({style_class: "window-corner-preview"});
 
@@ -169,17 +209,9 @@ function CWindowPreview() {
 
     // Destroy window preview
     let _disable = function() {
-        if (_window) {
-            if (_unmanagedId) {
-                _window.disconnect(_unmanagedId);
-                _unmanagedId = null;
-            }
-            if (_sizeChangedId) {
-                _window.disconnect(_sizeChangedId);
-                _unmanagedId = null;
-            }
-            _window = null;
-        }
+        if (_window) _window = null;
+
+        if (_windowSignals) _windowSignals.disconnectAll();
 
         if (!_container) return;
 
