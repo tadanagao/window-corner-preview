@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist gettext-domain="gnome-shell-extensions">
+  <enum id="org.gnome.shell.extensions.window-corner-preview.BehaviorMode">
+    <value value="0" nick="seethrough"/>
+    <value value="1" nick="autohide"/>
+    <value value="2" nick="jump-diagonally"/>
+    <value value="3" nick="jump-horizontally"/>
+    <value value="4" nick="jump-vertically"/>
+  </enum>
+  <schema path="/org/gnome/shell/extensions/window-corner-preview/" id="org.gnome.shell.extensions.window-corner-preview">
+    <key name="behavior-mode" enum="org.gnome.shell.extensions.window-corner-preview.BehaviorMode">
+      <default>"seethrough"</default>
+      <summary>Mouse over behavior</summary>
+      <description>Behavior when mouse is over the preview</description>
+    </key>
+    <key name="focus-hidden" type="b">
+      <default>false</default>
+      <summary>Hide when window is focused</summary>
+      <description>Whether to automatically hide the preview when the mirrored window is on top.</description>
+    </key>
+  </schema>
+</schemalist>
