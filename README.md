@@ -10,7 +10,7 @@ May be useful to watch YouTube videos while working, or any kind of video or mov
 **Picking a window up**
 Choose a window to preview by selecting it from the monkey panel menu.
 
-**Zooming and cropping**
+**Zooming and cropping**  
 You can adjust the zoom by scrolling in and out on the middle of the preview box. To resize the margins, scroll along the box edges.
 Alternatively, you can use the sliders on the monkey menu.
 
