@@ -7,19 +7,18 @@ May be useful to watch YouTube videos while working, or any kind of video or mov
 **Window Corner Preview** is an extension for GNOME > 3.10.
 
 ## Usage
-**Picking a window up**
+**Picking a window up**  
 Choose a window to preview by selecting it from the monkey panel menu.
 
 **Zooming and cropping**  
-You can adjust the zoom by scrolling in and out on the middle of the preview box. To resize the margins, scroll along the box edges.
+You can adjust the zoom by scrolling in and out on the middle of the preview box. To resize the margins, scroll along the box edges.  
 Alternatively, you can use the sliders on the monkey menu.
-
-**Moving**
+**Moving**  
 *LEFT BUTTON*: it will go to the opposite corner
 *CENTER BUTTON*: it will go to the previous corner
 *RIGHT BUTTON*: it will go to the next corner
 
-**Activating the window**
+**Activating the window**  
 CTRL + CLICK: it will focus the displayed window
 
 
