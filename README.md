@@ -9,13 +9,16 @@ May be useful to watch YouTube videos while working, or any kind of video or mov
 ## Usage
 **Picking a window up**
 Choose a window to preview by selecting it from the monkey panel menu.
+
 **Zooming and cropping**
 You can adjust the zoom by scrolling in and out on the middle of the preview box. To resize the margins, scroll along the box edges.
 Alternatively, you can use the sliders on the monkey menu.
+
 **Moving**
 *LEFT BUTTON*: it will go to the opposite corner
 *CENTER BUTTON*: it will go to the previous corner
 *RIGHT BUTTON*: it will go to the next corner
+
 **Activating the window**
 CTRL + CLICK: it will focus the displayed window
 
