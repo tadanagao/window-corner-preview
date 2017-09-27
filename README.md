@@ -37,7 +37,7 @@ Here's a list of most changes for each version
 
 ## F.A.Q.
 > **Can you make it work when the window is minimized?**
-Sorry, I think it's not possible for now. From what I can see some apps (like Chromium when video streaming is being played) gets "frozen" when you minimize the window. I guess it's for keeping the system more efficient.
+Sorry, I think it's not possible for now. From what I can see some apps (like Chromium when video streaming is being played) get "frozen" when you minimize the window. I guess it's for keeping the system more efficient.
 **WORKAROUND**: Please just move the window to another workspace (SUPER + SHIFT + PAGE DOWN / UP), it won't bother you anymore
 
 
