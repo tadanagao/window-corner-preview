@@ -10,11 +10,7 @@
 // which was originally forked itself from https://github.com/Shou/float-mpv by "Shou" Benedict Aas
 //
 
-/////// https://github.com/GNOME/gnome-shell/blob/fbc60199bc67de9cdabcb123802142f2ba9e0a5b/js/ui/status/system.js
-////// https://github.com/GNOME/gnome-shell/blob/695bfb96160033be55cfb5ac41c121998f98c328/js/ui/magnifier.js
-///// https://github.com/GNOME/gnome-shell/blob/695bfb96160033be55cfb5ac41c121998f98c328/js/ui/pointerWatcher.js
-
-
+"use strict";
 
 // Imports
 const Lang = imports.lang;
@@ -74,6 +70,10 @@ const TWEEN_TIME_LONG = 0.80;
 // Settings feature is under development, for now use SETTING_* constants
 const SETTING_MAGNIFICATION_ALLOWED = false;
 
+const SCROLL_ACTOR_MARGIN = 0.2; // scrolling: 20% external margin to crop, 80% to zoom
+const SCROLL_ZOOM_STEP = 0.01; // 1% zoom for step
+const SCROLL_CROP_STEP = 0.0063; // cropping step when user scrolls
+
 // This is wrapper to maintain compatibility with GNOME-Shell 3.30+ as well as
 // previous versions.
 var DisplayWrapper = {
@@ -89,6 +89,7 @@ var DisplayWrapper = {
 };
 
 // Utilities
+
 function normalizeRange(denormal, min, max, step) {
     if (step !== undefined) denormal = Math.round(denormal / step) * step;
     // To a range 0-1
@@ -218,56 +219,58 @@ const PopupSliderMenuItem = new Lang.Class({
     }
 });
 
-function CWindowPreview() {
+const CWindowCornerPreview = new Lang.Class({
 
-    let self = this;
+    Name: "WindowCornerPreview.preview",
 
-    // Defaulting
-    let _corner = DEFAULT_CORNER;
-    let _zoom = DEFAULT_ZOOM;
+    _init: function () {
+        this._corner = DEFAULT_CORNER;
+        this._zoom = DEFAULT_ZOOM;
 
-    let _leftCropRatio = DEFAULT_CROP_RATIO;
-    let _rightCropRatio = DEFAULT_CROP_RATIO;
-    let _topCropRatio = DEFAULT_CROP_RATIO;
-    let _bottomCropRatio = DEFAULT_CROP_RATIO;
+        this._leftCropRatio = DEFAULT_CROP_RATIO;
+        this._rightCropRatio = DEFAULT_CROP_RATIO;
+        this._topCropRatio = DEFAULT_CROP_RATIO;
+        this._bottomCropRatio = DEFAULT_CROP_RATIO;
 
-    // The preview is hidden when the overview is shown or the top window is on top, this property is used to restore visibility or not
-    let _naturalVisibility = false;
-    let _focusHidden = true;
+        // The following properties are documented on _adjustVisibility()
+        this._naturalVisibility = false;
+        this._focusHidden = true;
 
-    let _container;
-    let _window;
+        this._container = null;
+        this._window = null;
 
-    let _windowSignals = new CSignalBundle();
-    let _environmentSignals = new CSignalBundle();
+        this._windowSignals = new CSignalBundle();
+        this._environmentSignals = new CSignalBundle();
+        log("INIZIO");
+    },
 
-    self._onClick = function (actor, event) {
+    _onClick: function (actor, event) {
         let button = event.get_button();
         let state = event.get_state();
 
         // CTRL + LEFT BUTTON activate the window on top
         if (button === GTK_MOUSE_LEFT_BUTTON && (state & GDK_CONTROL_MASK)) {
-            _window.activate(global.get_current_time());
+            this._window.activate(global.get_current_time());
         }
 
         // Otherwise move the preview to another corner
         else {
             switch(button) {
                 case GTK_MOUSE_RIGHT_BUTTON:
-                    self.corner += 1;
+                    this.corner += 1;
                 break;
 
                 case GTK_MOUSE_MIDDLE_BUTTON:
-                    self.corner += -1;
+                    this.corner += -1;
                     break;
 
                 default: // GTK_MOUSE_LEFT_BUTTON:
-                    self.corner += 2;
+                    this.corner += 2;
             }
         }
-    };
+    },
 
-    self._onScroll = function (actor, event) {
+    _onScroll: function (actor, event) {
         let scroll_direction = event.get_scroll_direction();
 
         let direction;
@@ -287,17 +290,20 @@ function CWindowPreview() {
                 direction = 0.0;
         }
 
-        if (! direction) return Clutter.EVENT_PROPAGATE;
+        if (! direction) return; // Clutter.EVENT_PROPAGATE;
 
         // On mouse over it's normally pretty transparent, but user needs to see more for adjusting it
-        Tweener.addTween(_container, {opacity: TWEEN_OPACITY_SEMIFULL, time: TWEEN_TIME_SHORT, transition: "easeOutQuad"});
+        Tweener.addTween(this._container, {
+            opacity: TWEEN_OPACITY_SEMIFULL,
+            time: TWEEN_TIME_SHORT, transition: "easeOutQuad"
+        });
 
         // Coords are absolute, screen related
         let [mouseX, mouseY] = event.get_coords();
 
         // _container absolute rect
-        let [actorX1, actorY1] = _container.get_transformed_position();
-        let [actorWidth, actorHeight] = _container.get_transformed_size();
+        let [actorX1, actorY1] = this._container.get_transformed_position();
+        let [actorWidth, actorHeight] = this._container.get_transformed_size();
         let actorX2 = actorX1 + actorWidth;
         let actorY2 = actorY1 + actorHeight;
 
@@ -306,11 +312,6 @@ function CWindowPreview() {
         let deltaRight = Math.abs(actorX2 - mouseX);
         let deltaTop = Math.abs(actorY1 - mouseY);
         let deltaBottom = Math.abs(actorY2 - mouseY);
-
-        const SCROLL_ACTOR_MARGIN = 0.2; // 20% margin length
-        const SCROLL_ZOOM_STEP = 0.01; // 1% zoom for step
-        const SCROLL_CROP_STEP = 0.0063; // 0.005;
-
 
         let sortedDeltas = [
             {property: "leftCropRatio", pxDistance: deltaLeft, comparedDistance: deltaLeft / actorWidth, direction: -direction},
@@ -323,212 +324,175 @@ function CWindowPreview() {
 
         // Scrolling inside the preview triggers the zoom
         if (deltaMinimum.comparedDistance > SCROLL_ACTOR_MARGIN) {
-
-            self.zoom += direction * SCROLL_ZOOM_STEP;
+            this.zoom += direction * SCROLL_ZOOM_STEP;
         }
 
         // Scrolling along the margins triggers the cropping instead
         else {
-
-            self[deltaMinimum.property] += deltaMinimum.direction * SCROLL_CROP_STEP;
+            this[deltaMinimum.property] += deltaMinimum.direction * SCROLL_CROP_STEP;
         }
-    };
+    },
 
-    self._onEnter = function (actor, event) {
-
+    _onEnter: function (actor, event) {
         let [x, y, state] = global.get_pointer();
 
         // SHIFT: ignore standard behavior
         if (state & GDK_SHIFT_MASK) {
-            return Clutter.EVENT_PROPAGATE;
+            return; // Clutter.EVENT_PROPAGATE;
         }
 
-        Tweener.addTween(_container, {
+        Tweener.addTween(this._container, {
             opacity: TWEEN_OPACITY_TENTH,
             time: TWEEN_TIME_MEDIUM,
             transition: "easeOutQuad"
         });
-    };
+    },
 
-    self._onLeave = function () {
-        Tweener.addTween(_container, {
+    _onLeave: function () {
+        Tweener.addTween(this._container, {
             opacity: TWEEN_OPACITY_FULL,
             time: TWEEN_TIME_MEDIUM,
             transition: "easeOutQuad"
         });
-    };
+    },
 
-    self._onParamsChange = function () {
+    _onParamsChange: function () {
         // Zoom or crop properties changed
-        if (self.isEnabled()) {
-            self._setThumbnail();
-        }
-    };
+        if (this.enabled) this._setThumbnail();
+    },
 
-    self._onWindowUnmanaged = function () {
-        if (self.onWindowUnmanaged) self.onWindowUnmanaged(_window);
-        self._disable();
-    };
+    _onWindowUnmanaged: function () {
+        this._disable();
+        this._window = null;
+    },
 
-    self._adjustVisibility = function (options) {
+    _adjustVisibility: function (options) {
         options = options || {};
 
-        if (! _container) {
+        /*
+            [Boolean] this._naturalVisibility:
+                        true === show the preview whenever is possible;
+                        false === don't show it in any case
+            [Boolean] this._focusHidden:
+                        true === hide in case the mirrored window should be active
+
+            options = {
+                onComplete: [function] to call once the process is done.
+                            It's called even if visibility was already set as requested
+
+                noAnimate: [Boolean] to skip animation. If switching from window A to window B,
+                             for example, the preview gets first destroyed (so hidden) then recreated.
+                             This would lead to a fade-out + fade-in, which is not what most users like.
+                             noAnimate === true avoids that.
+            };
+        */
+
+        if (! this._container) {
             if (options.onComplete) options.onComplete();
             return;
         }
 
-
-        if (!self._overviewHidden !== !Main.overview.visibleTarget) log ("Main.overview.visible", Main.overview.visibleTarget);
         // Hide when overView is shown, or source window is on top, or user related reasons
+        let canBeShownOnFocus = (! this._focusHidden) || (global.display.focus_window !== this._window);
 
+        let calculatedVisibility =  this._window
+                                    && this._naturalVisibility
+                                    && canBeShownOnFocus
+                                    && (! Main.overview.visibleTarget);
 
-        let canBeShownOnFocus = (! _focusHidden) || (global.display.focus_window !== _window);
+        let calculatedOpacity = (calculatedVisibility) ? TWEEN_OPACITY_FULL : TWEEN_OPACITY_NULL;
 
-        let calculatedVisibility =  _naturalVisibility && canBeShownOnFocus && (! Main.overview.visibleTarget);
-
-        let calculatedOpacity = (calculatedVisibility ? TWEEN_OPACITY_FULL : TWEEN_OPACITY_NULL);
-//log("containter visibile", _container.visible, "to set visible", calculatedVisibility, "opacity container", _container.get_opacity());
-
-
-
-        if ((calculatedVisibility === _container.visible) && (calculatedOpacity === _container.get_opacity())) {
-            // log("ALREADY OK");
+        // Already OK (hidden / shown), no change needed
+        if ((calculatedVisibility === this._container.visible) && (calculatedOpacity === this._container.get_opacity())) {
             if (options.onComplete) options.onComplete();
         }
 
+        // Quick set (show or hide), but don't animate
         else if (options.noAnimate) {
-            // log("PLAIN");
-            _container.set_opacity(calculatedOpacity)
-            _container.visible = calculatedVisibility;
+            this._container.set_opacity(calculatedOpacity)
+            this._container.visible = calculatedVisibility;
             if (options.onComplete) options.onComplete();
         }
 
+        // Animation needed (either from less to more opacity or viceversa)
         else {
-            _container.reactive = false;
-            if (! _container.visible) {
-                _container.set_opacity(TWEEN_OPACITY_NULL);
-                _container.visible = true;
+            this._container.reactive = false;
+            if (! this._container.visible) {
+                this._container.set_opacity(TWEEN_OPACITY_NULL);
+                this._container.visible = true;
             }
-            Tweener.addTween(_container, {
+
+            Tweener.addTween(this._container, {
                 opacity: calculatedOpacity,
                 time: TWEEN_TIME_SHORT,
                 transition: "easeOutQuad",
-                onComplete: function () {
-                    _container.visible = calculatedVisibility;
-                    _container.reactive = true;
+                onComplete: Lang.bind(this, function () {
+                    this._container.visible = calculatedVisibility;
+                    this._container.reactive = true;
                     if (options.onComplete) options.onComplete();
-                }
+                })
             });
-            // log("Traditional show/hide");
         }
-    }
+    },
 
-    self._onNotifyFocusWindow = function () {
-        self._adjustVisibility();
-    };
+    _onNotifyFocusWindow: function () {
+        this._adjustVisibility();
+    },
 
-    self._onOverviewShowing = function () {
-        self._adjustVisibility();
-    };
+    _onOverviewShowing: function () {
+        this._adjustVisibility();
+    },
 
-    self._onOverviewHiding = function () {
-        self._adjustVisibility();
-    };
+    _onOverviewHiding: function () {
+        this._adjustVisibility();
+    },
 
-
-    // Create window preview
-    self._enable = function(window) {
-        let isSwitchingWindow = self.isEnabled();
-
-        self._disable();
-
-        if (! window) return;
-
-        _window = window;
-
-        _windowSignals.tryConnect(_window, "unmanaged", self._onWindowUnmanaged);
-        // Version 3.10 does not support size-changed
-        _windowSignals.tryConnect(_window, "size-changed", self._setThumbnail);
-        //_windowSignals.tryConnect(_window, "notify::minimized", log.bind(null, "minimized"));
-        _windowSignals.tryConnect(_window, "notify::maximized-vertically", self._setThumbnail);
-        _windowSignals.tryConnect(_window, "notify::maximized-horizontally", self._setThumbnail);
-
-        // Hide (but don't destroy) it when user is not on a normal desktop area
-        _environmentSignals.tryConnect(Main.overview, "showing", self._onOverviewShowing);
-        _environmentSignals.tryConnect(Main.overview, "hiding", self._onOverviewHiding);
-        _environmentSignals.tryConnect(global.display, "notify::focus-window", self._onNotifyFocusWindow);
-
-        _container = new St.Button({style_class: "window-corner-preview"});
-
-        _container.connect("enter-event", self._onEnter);
-        _container.connect("leave-event",  self._onLeave);
-        // Don't use button-press-event, as set_position conflicts and Gtk would react for enter and leave event of ANY item on the chrome area
-        _container.connect("button-release-event",  self._onClick);
-        _container.connect("scroll-event",  self._onScroll);
-
-        _container.visible = false;
-        Main.layoutManager.addChrome(_container);
-        self._setThumbnail();
-
-        // isSwitchingWindow = false means user only changed window, but preview was on, so does not animate
-        self._adjustVisibility({noAnimate: isSwitchingWindow});
-    };
-
-    // Destroy window preview
-    self._disable = function() {
-        if (_window) _window = null;
-
-        _windowSignals.disconnectAll();
-        _environmentSignals.disconnectAll();
-
-        if (!_container) return;
-
-        Main.layoutManager.removeChrome(_container);
-        _container.destroy();
-        _container = null;
-    };
+    _onMonitorsChanged: function () {
+        // TODO multiple monitors issue, the preview doesn't stick to the right monitor
+        log("Monitors changed");
+    },
 
     // Align the preview along the chrome area
-    self._setPosition = function() {
-        let _posX, _posY;
+    _setPosition: function () {
 
-        let rectMonitor = Main.layoutManager.getWorkAreaForMonitor(DisplayWrapper.getScreen().get_current_monitor());
+        let posX, posY;
+
+        let rectMonitor = Main.layoutManager.getWorkAreaForMonitor(global.screen.get_current_monitor());
 
         let rectChrome = {
             x1: rectMonitor.x,
             y1: rectMonitor.y,
-            x2: rectMonitor.width + rectMonitor.x - _container.get_width(),
-            y2: rectMonitor.height + rectMonitor.y - _container.get_height()
+            x2: rectMonitor.width + rectMonitor.x - this._container.get_width(),
+            y2: rectMonitor.height + rectMonitor.y - this._container.get_height()
         };
 
-        switch (_corner) {
+        switch (this._corner) {
 
             case CORNER_TOP_LEFT:
-                _posX = rectChrome.x1;
-                _posY = rectChrome.y1;
+                posX = rectChrome.x1;
+                posY = rectChrome.y1;
                 break;
 
             case CORNER_BOTTOM_LEFT:
-                _posX = rectChrome.x1;
-                _posY = rectChrome.y2;
+                posX = rectChrome.x1;
+                posY = rectChrome.y2;
                 break;
 
             case CORNER_BOTTOM_RIGHT:
-                _posX = rectChrome.x2;
-                _posY = rectChrome.y2;
+                posX = rectChrome.x2;
+                posY = rectChrome.y2;
                 break;
 
             default: // CORNER_TOP_RIGHT:
-                _posX = rectChrome.x2;
-                _posY = rectChrome.y1;
+                posX = rectChrome.x2;
+                posY = rectChrome.y1;
         }
-        _container.set_position(_posX, _posY);
-    };
+        this._container.set_position(posX, posY);
+    },
 
     // Create a window thumbnail and adds it to the container
-    self._setThumbnail = function() {
-        let mutw = _window.get_compositor_private();
+    _setThumbnail: function () {
+        let mutw = this._window.get_compositor_private();
 
         if (! mutw) return;
 
@@ -555,10 +519,10 @@ function CWindowPreview() {
 
         // Get absolute margin values for cropping
         let margins = {
-            left: windowWidth * self.leftCropRatio,
-            right: windowWidth * self.rightCropRatio,
-            top: windowHeight * self.topCropRatio,
-            bottom: windowHeight * self.bottomCropRatio,
+            left: windowWidth * this.leftCropRatio,
+            right: windowWidth * this.rightCropRatio,
+            top: windowHeight * this.topCropRatio,
+            bottom: windowHeight * this.bottomCropRatio,
         };
 
         // Calculate the size of the cropped rect (based on the 100% window size)
@@ -567,13 +531,13 @@ function CWindowPreview() {
 
         // To mantain a similar thumbnail size whenever the user selects a different window to preview,
         // instead of zooming out based on the window size itself, it takes the window screen as a standard unit (= 100%)
-        let rectMonitor = Main.layoutManager.getWorkAreaForMonitor(DisplayWrapper.getScreen().get_current_monitor());
-        let targetRatio = rectMonitor.width * self.zoom / windowWidth;
+        let rectMonitor = Main.layoutManager.getWorkAreaForMonitor(global.screen.get_current_monitor());
+        let targetRatio = rectMonitor.width * this.zoom / windowWidth;
 
         // No magnification allowed (KNOWN ISSUE: there's no height control if used, it still needs optimizing)
         if (! SETTING_MAGNIFICATION_ALLOWED && targetRatio > 1.0) {
             targetRatio = 1.0;
-            _zoom = windowWidth / rectMonitor.width; // do NOT set self.zoom or it will be looping!
+            this._zoom = windowWidth / rectMonitor.width; // do NOT set this.zoom (the encapsulated prop for _zoom) or it will be looping!
         }
 
         let thumbnail = new Clutter.Clone({ // list parameters https://www.roojs.org/seed/gir-1.2-gtk-3.0/seed/Clutter.Clone.html
@@ -599,111 +563,171 @@ function CWindowPreview() {
 
         });
 
-        _container.foreach(function (actor) {
+        this._container.foreach(function (actor) {
             actor.destroy();
         });
 
-       //
-_container.set_clip_to_allocation(true);
+        this._container.add_actor(thumbnail);
 
-        _container.add_actor(thumbnail);
-
-        self._setPosition();
-    };
+        this._setPosition();
+    },
 
     // xCropRatio properties normalize their opposite counterpart, so that margins won't ever overlap
-    self.__defineSetter__("leftCropRatio", function(value) {
-
+    set leftCropRatio (value) {
         // [0, MAX] range
-        _leftCropRatio = Math.min(MAX_CROP_RATIO, Math.max(0.0, value));
-
+        this._leftCropRatio = Math.min(MAX_CROP_RATIO, Math.max(0.0, value));
         // Decrease the opposite margin if necessary
-        _rightCropRatio = Math.min(_rightCropRatio, MAX_CROP_RATIO - _leftCropRatio);
+        this._rightCropRatio = Math.min(this._rightCropRatio, MAX_CROP_RATIO - this._leftCropRatio);
+        this._onParamsChange();
+    },
 
-        self._onParamsChange();
-    });
+    set rightCropRatio (value) {
+        this._rightCropRatio = Math.min(MAX_CROP_RATIO, Math.max(0.0, value));
+        this._leftCropRatio = Math.min(this._leftCropRatio, MAX_CROP_RATIO - this._rightCropRatio);
+        this._onParamsChange();
+    },
 
-    self.__defineSetter__("rightCropRatio", function(value) {
-        _rightCropRatio = Math.min(MAX_CROP_RATIO, Math.max(0.0, value));
-        _leftCropRatio = Math.min(_leftCropRatio, MAX_CROP_RATIO - _rightCropRatio);
-        self._onParamsChange();
-    });
+    set topCropRatio (value) {
+        this._topCropRatio = Math.min(MAX_CROP_RATIO, Math.max(0.0, value));
+        this._bottomCropRatio = Math.min(this._bottomCropRatio, MAX_CROP_RATIO - this._topCropRatio);
+        this._onParamsChange();
+    },
 
-    self.__defineSetter__("topCropRatio", function(value) {
-        _topCropRatio = Math.min(MAX_CROP_RATIO, Math.max(0.0, value));
-        _bottomCropRatio = Math.min(_bottomCropRatio, MAX_CROP_RATIO - _topCropRatio);
-        self._onParamsChange();
-    });
+    set bottomCropRatio (value) {
+        this._bottomCropRatio = Math.min(MAX_CROP_RATIO, Math.max(0.0, value));
+        this._topCropRatio = Math.min(this._topCropRatio, MAX_CROP_RATIO - this._bottomCropRatio);
+        this._onParamsChange();
+    },
 
-    self.__defineSetter__("bottomCropRatio", function(value) {
-        _bottomCropRatio = Math.min(MAX_CROP_RATIO, Math.max(0.0, value));
-        _topCropRatio = Math.min(_topCropRatio, MAX_CROP_RATIO - _bottomCropRatio);
-        self._onParamsChange();
-    });
+    get leftCropRatio() {
+        return this._leftCropRatio;
+    },
 
-    self.__defineGetter__("leftCropRatio", function() {
-        return _leftCropRatio;
-    });
+    get rightCropRatio() {
+        return this._rightCropRatio;
+    },
 
-    self.__defineGetter__("rightCropRatio", function() {
-        return _rightCropRatio;
-    });
+    get topCropRatio() {
+        return this._topCropRatio;
+    },
 
-    self.__defineGetter__("topCropRatio", function() {
-        return _topCropRatio;
-    });
+    get bottomCropRatio() {
+        return this._bottomCropRatio;
+    },
 
-    self.__defineGetter__("bottomCropRatio", function() {
-        return _bottomCropRatio;
-    });
+    set zoom (value) {
+        this._zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value));
+        this._onParamsChange();
+    },
 
-    self.__defineSetter__("zoom", function(value) {
-        _zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value));
-        self._onParamsChange();
-    });
+    get zoom() {
+        return this._zoom;
+    },
 
-    self.__defineGetter__("zoom", function() {
-        return _zoom;
-    });
+    set focusHidden(value) {
+        this._focusHidden = !!value;
+        this._adjustVisibility();
+    },
 
-    self.__defineSetter__("focusHidden", function(value) {
-        _focusHidden = !!value;
-        self._adjustVisibility();
-    });
+    get focusHidden() {
+        return this._focusHidden;
+    },
 
-    self.__defineGetter__("focusHidden", function() {
-        return _focusHidden;
-    });
+    set corner(value) {
+        this._corner = (value %= 4) < 0 ? (value + 4) : (value);
+        this._setPosition();
+    },
 
-    self.__defineSetter__("corner", function(value) {
-        _corner = value % 4;
-        if (_corner < 0) _corner += 4;
-        self._setPosition();
-    });
+    get corner() {
+        return this._corner;
+    },
 
-    self.__defineGetter__("corner", function() {
-        return _corner;
-    });
+    get enabled() {
+        return !! this._container;
+    },
 
-    self.isEnabled = function () {
-        return !! _container;
-    };
+    show: function () {
+        this._naturalVisibility = true;
+        if (this._window) this._adjustVisibility();
+    },
 
-    self.show = function (window) {
-        _naturalVisibility = true;
-        self._enable(window);
-    };
+    toggle: function(value) {
+        if (! arguments.length) log("toggle with no args");
 
-    self.passAway = function () {
-        _naturalVisibility = false;
-        self._adjustVisibility({onComplete: self._disable});
-    };
-}
+        (value) ? this.show() : this.passAway();
+    },
+
+    passAway: function () {
+        this._naturalVisibility = false;
+        this._adjustVisibility({onComplete: Lang.bind(this, this._disable)});
+    },
+
+    get window() {
+        return this._window;
+    },
+
+    set window(metawindow) {
+        this._enable(metawindow);
+    },
+
+    _enable: function (metawindow) {
+        let isSwitchingWindow = this.enabled;
+
+        this._disable();
+
+        this._window = metawindow;
+
+        if (! metawindow) return;
+
+        this._windowSignals.tryConnect(this._window, "unmanaged", Lang.bind(this, this._onWindowUnmanaged));
+        // Version 3.10 does not support size-changed
+        this._windowSignals.tryConnect(this._window, "size-changed", Lang.bind(this, this._setThumbnail));
+        //_windowSignals.tryConnect(_window, "notify::minimized", log.bind(null, "minimized"));
+        this._windowSignals.tryConnect(this._window, "notify::maximized-vertically", Lang.bind(this, this._setThumbnail));
+        this._windowSignals.tryConnect(this._window, "notify::maximized-horizontally", Lang.bind(this, this._setThumbnail));
+
+        this._environmentSignals.tryConnect(Main.overview, "showing", Lang.bind(this, this._onOverviewShowing));
+        this._environmentSignals.tryConnect(Main.overview, "hiding", Lang.bind(this, this._onOverviewHiding));
+        this._environmentSignals.tryConnect(global.display, "notify::focus-window", Lang.bind(this, this._onNotifyFocusWindow));
+        this._environmentSignals.tryConnect(global.screen, "monitors-changed", Lang.bind(this, this._onMonitorsChanged));
 
 
+        this._container = new St.Button({style_class: "window-corner-preview"});
+        // Force content not to overlap, allowing cropping
+        this._container.set_clip_to_allocation(true);
 
+        this._container.connect("enter-event", Lang.bind(this, this._onEnter));
+        this._container.connect("leave-event", Lang.bind(this, this._onLeave));
+        // Don't use button-press-event, as set_position conflicts and Gtk would react for enter and leave event of ANY item on the chrome area
+        this._container.connect("button-release-event", Lang.bind(this, this._onClick));
+        this._container.connect("scroll-event", Lang.bind(this, this._onScroll));
+
+        this._container.visible = false;
+        Main.layoutManager.addChrome(this._container);
+        this._setThumbnail();
+
+        // isSwitchingWindow = false means user only changed window, but preview was on, so does not animate
+        this._adjustVisibility({noAnimate: isSwitchingWindow});
+    },
+
+    _disable: function () {
+        log("disable", this._container);
+
+        this._windowSignals.disconnectAll();
+        this._environmentSignals.disconnectAll();
+
+        if (! this._container) return;
+
+        Main.layoutManager.removeChrome(this._container);
+        this._container.destroy();
+        this._container = null;
+    },
+
+
+})
 
 const CWindowCornerPreviewMenu = new Lang.Class({
+
     Name: "WindowCornerPreview.indicator",
     Extends: PanelMenu.Button,
 
@@ -713,12 +737,7 @@ const CWindowCornerPreviewMenu = new Lang.Class({
 
     // Handler to turn preview on / off
     _onMenuIsEnabled: function (item) {
-        if (! item.state) {
-            this.preview.passAway();
-        }
-        else if (this.lastPreviewedWindow) {
-            this.preview.show(this.lastPreviewedWindow);
-        }
+        this.preview.toggle(item.state);
     },
 
     _updateSliders: function () {
@@ -761,36 +780,29 @@ const CWindowCornerPreviewMenu = new Lang.Class({
     },
 
     // Update windows list and other menus before menu pops up
-    _onUserTriggered: function() {
-        this.menuIsEnabled.setToggleState(this.preview.isEnabled());
+    _onUserTriggered: function () {
+        this.menuIsEnabled.setToggleState(this.preview.enabled);
         this._updateSliders();
         this.menuWindows.menu.removeAll();
-        let workspaces = getWorkspaceWindowsArray();
-        for (let i = 0; i < workspaces.length; i++) {
-            let workspace = workspaces[i];
-            // Cannot use nested submenus, for now it adds a separator after each workspace
+        getWorkspaceWindowsArray().forEach(function (workspace, i) {
             if (i > 0) {
                 this.menuWindows.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
             }
+
             // Populate window list on submenu
             workspace.windows.forEach(function (window) {
                 let winMenuItem = new PopupMenu.PopupMenuItem(spliceTitle(window.get_title()));
                 winMenuItem.connect("activate", Lang.bind(this, function () {
-                    this.preview.show(window);
-                    this.lastPreviewedWindow = window;
+                    this.preview.window = window;
+                    this.preview.show();
                 }));
 
                 this.menuWindows.menu.addMenuItem(winMenuItem);
             }, this);
-        }
-    },
-
-    _onWindowUnmanaged: function () {
-        this.lastPreviewedWindow = null;
+        }, this);
     },
 
     _onSettingsChanged: function (settings, key) {
-
         this.preview.focusHidden = this.settings.get_boolean(Prefs.SETTING_FOCUS_HIDDEN);
 
         switch (key) {
@@ -806,9 +818,6 @@ const CWindowCornerPreviewMenu = new Lang.Class({
     },
 
     enable: function () {
-        this.preview = new CWindowPreview();
-        // If a window on preview is closed, don't let user reshow it
-        this.preview.onWindowUnmanaged = Lang.bind(this, this._onWindowUnmanaged);
 
         // Add icon
         this.icon = new St.Icon({ icon_name: "face-monkey-symbolic", style_class: "system-status-icon"});
@@ -857,7 +866,6 @@ const CWindowCornerPreviewMenu = new Lang.Class({
         this.menuCrop.menu.addMenuItem(this.menuBottomCrop);
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
-        /* TODO Under development  */
         // 5. Settings
         this.menuSettings = new PopupMenu.PopupMenuItem("Settings");
         this.menuSettings.connect("activate", Lang.bind(this, this._onSettings));
@@ -873,7 +881,6 @@ const CWindowCornerPreviewMenu = new Lang.Class({
     },
 
     disable: function () {
-        this.preview.passAway();
         this.menu.removeAll();
     }
 });
@@ -887,11 +894,13 @@ function init() {
 
 function enable() {
     menu = new CWindowCornerPreviewMenu();
+    menu.preview = new CWindowCornerPreview();
     menu.enable();
     Main.panel.addToStatusArea("CWindowCornerPreviewMenu", menu);
 }
 
 function disable() {
+    menu.preview.passAway();
     menu.disable();
     menu.destroy();
 }
