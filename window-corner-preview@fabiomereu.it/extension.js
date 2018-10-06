@@ -74,23 +74,9 @@ const TWEEN_TIME_LONG = 0.80;
 // Settings feature is under development, for now use SETTING_* constants
 const SETTING_MAGNIFICATION_ALLOWED = false;
 
-// This is wrapper to maintain compatibility with GNOME-Shell 3.30+ as well as
-// previous versions.
-var DisplayWrapper = {
-    getScreen: function() {
-        return global.screen || global.display;
-    },
-    getWorkspaceManager: function() {
-        return global.screen || global.workspace_manager;
-    },
-    getMonitorManager: function() {
-        return global.screen || Meta.MonitorManager.get();
-    }
-};
-
 // Utilities
 function normalizeRange(denormal, min, max, step) {
-    if (step !== undefined) denormal = Math.round(denormal / step) * step;
+    if (step !== undefined) denormal = Math.round(denormal / step) * step;  
     // To a range 0-1
     return (denormal - min) / (max - min);
 };
@@ -98,7 +84,7 @@ function normalizeRange(denormal, min, max, step) {
 function deNormalizeRange(normal, min, max, step) {
     // from [0, 1] to MIN - MAX
     let denormal = (max - min) * normal + min;
-    if (step !== undefined) denormal = Math.round(denormal / step) * step;
+    if (step !== undefined) denormal = Math.round(denormal / step) * step;  
     return denormal;
 };
 
@@ -107,18 +93,18 @@ function deNormalizeRange(normal, min, max, step) {
 function getWorkspaceWindowsArray() {
     let array = [];
 
-    let wsActive = DisplayWrapper.getWorkspaceManager().get_active_workspace_index();
+    let wsActive = global.screen.get_active_workspace_index();
 
-    for (let i = 0; i < DisplayWrapper.getWorkspaceManager().n_workspaces; i++) {
-        let workspace = DisplayWrapper.getWorkspaceManager().get_workspace_by_index(i);
+    for (let i = 0; i < global.screen.n_workspaces; i++) {
+        let workspace = global.screen.get_workspace_by_index(i);
         let windows = workspace.list_windows();
         if (windows.length) array.push({
             workspace: workspace,
             windows: windows,
             index: i,
             isActive: (i === wsActive)
-        });
-    }
+        });        
+    } 
     return array;
 };
 
@@ -178,7 +164,7 @@ const PopupSliderMenuItem = new Lang.Class({
         this.min = (min !== undefined ? min : 0.0);
         this.max = (max !== undefined ? max : 1.0);
         this.defaultValue = (value !== undefined ? value : (this.max + this.min) / 2.0);
-        // *** KNOWN ISSUE: Scrolling may get stucked if step value > 1.0 (and |min-max| is a low value)
+        // *** KNOWN ISSUE: Scrolling may get stucked if step value > 1.0 (and |min-max| is a low value) 
         // due to const SLIDER_SCROLL_STEP = 0.02 on js/ui/slider.js ***
         this.step = step;
         params = params || {};
@@ -202,7 +188,7 @@ const PopupSliderMenuItem = new Lang.Class({
             if (this.step !== undefined) this.value = normalValue;
             // Don't through any event if step rounded it to the same value
             if (normalValue !== this._lastValue) this.emit("value-changed", normalValue);
-            this._lastValue = normalValue;
+            this._lastValue = normalValue;           
         }));
 
         this.actor.add(this.slider.actor, {expand: true, align: St.Align.END});
@@ -342,7 +328,7 @@ function CWindowPreview() {
         if (state & GDK_SHIFT_MASK) {
             return Clutter.EVENT_PROPAGATE;
         }
-
+        
         Tweener.addTween(_container, {
             opacity: TWEEN_OPACITY_TENTH,
             time: TWEEN_TIME_MEDIUM,
@@ -366,7 +352,7 @@ function CWindowPreview() {
     };
 
     self._onWindowUnmanaged = function () {
-        if (self.onWindowUnmanaged) self.onWindowUnmanaged(_window);
+        if (self.onWindowUnmanaged) self.onWindowUnmanaged(_window); 
         self._disable();
     };
 
@@ -430,7 +416,7 @@ function CWindowPreview() {
 
     self._onOverviewShowing = function () {
         self._adjustVisibility();
-    };
+    }; 
 
     self._onOverviewHiding = function () {
         self._adjustVisibility();
@@ -493,7 +479,7 @@ function CWindowPreview() {
     self._setPosition = function() {
         let _posX, _posY;
 
-        let rectMonitor = Main.layoutManager.getWorkAreaForMonitor(DisplayWrapper.getScreen().get_current_monitor());
+        let rectMonitor = Main.layoutManager.getWorkAreaForMonitor(global.screen.get_current_monitor());
 
         let rectChrome = {
             x1: rectMonitor.x,
@@ -558,7 +544,7 @@ function CWindowPreview() {
             left: windowWidth * self.leftCropRatio,
             right: windowWidth * self.rightCropRatio,
             top: windowHeight * self.topCropRatio,
-            bottom: windowHeight * self.bottomCropRatio,
+            bottom: windowHeight * self.bottomCropRatio, 
         };
 
         // Calculate the size of the cropped rect (based on the 100% window size)
@@ -567,7 +553,7 @@ function CWindowPreview() {
 
         // To mantain a similar thumbnail size whenever the user selects a different window to preview,
         // instead of zooming out based on the window size itself, it takes the window screen as a standard unit (= 100%)
-        let rectMonitor = Main.layoutManager.getWorkAreaForMonitor(DisplayWrapper.getScreen().get_current_monitor());
+        let rectMonitor = Main.layoutManager.getWorkAreaForMonitor(global.screen.get_current_monitor());
         let targetRatio = rectMonitor.width * self.zoom / windowWidth;
 
         // No magnification allowed (KNOWN ISSUE: there's no height control if used, it still needs optimizing)
@@ -603,7 +589,7 @@ function CWindowPreview() {
             actor.destroy();
         });
 
-       //
+       // 
 _container.set_clip_to_allocation(true);
 
         _container.add_actor(thumbnail);
@@ -802,7 +788,7 @@ const CWindowCornerPreviewMenu = new Lang.Class({
                 //log("focus", key);
                 break;
         }
-
+        
     },
 
     enable: function () {
@@ -880,17 +866,17 @@ const CWindowCornerPreviewMenu = new Lang.Class({
 
 
 let menu;
-
+ 
 function init() {
     // nothing
 }
-
+ 
 function enable() {
     menu = new CWindowCornerPreviewMenu();
     menu.enable();
     Main.panel.addToStatusArea("CWindowCornerPreviewMenu", menu);
 }
-
+ 
 function disable() {
     menu.disable();
     menu.destroy();
