@@ -27,6 +27,12 @@ const ExtensionUtils = imports.misc.extensionUtils;
 const Me = ExtensionUtils.getCurrentExtension();
 const Convenience = Me.imports.convenience;
 const Prefs = Me.imports.prefs;
+const Bundle = Me.imports.bundle;
+
+const SignalConnector = Bundle.SignalConnector;
+const normalizeRange = Bundle.normalizeRange;
+const deNormalizeRange = Bundle.deNormalizeRange;
+const spliceTitle = Bundle.spliceTitle;
 
 // External constants
 const GTK_MOUSE_LEFT_BUTTON = 1;
@@ -43,8 +49,6 @@ const MIN_ZOOM = 0.10; // User shouldn't be able to make the preview too small o
 const MAX_ZOOM = 0.75;
 
 const MAX_CROP_RATIO = 0.85;
-
-const MAX_TITLE = 25; // Truncate too long window titles on the menu
 
 const CORNER_TOP_LEFT = 0;
 const CORNER_TOP_RIGHT = 1;
@@ -89,21 +93,6 @@ var DisplayWrapper = {
     }
 };
 
-// Utilities
-
-function normalizeRange(denormal, min, max, step) {
-    if (step !== undefined) denormal = Math.round(denormal / step) * step;
-    // To a range 0-1
-    return (denormal - min) / (max - min);
-};
-
-function deNormalizeRange(normal, min, max, step) {
-    // from [0, 1] to MIN - MAX
-    let denormal = (max - min) * normal + min;
-    if (step !== undefined) denormal = Math.round(denormal / step) * step;
-    return denormal;
-};
-
 // Result: [{windows: [{win1}, {win2}, ...], workspace: {workspace}, index: nWorkspace, isActive: true|false}, ..., {...}]
 // Omit empty (with no windows) workspaces from the array
 function getWorkspaceWindowsArray() {
@@ -124,58 +113,11 @@ function getWorkspaceWindowsArray() {
     return array;
 };
 
-// Char based, so not very precise for now
-function spliceTitle(text) {
-    text = text || "";
-    if (text.length > MAX_TITLE) {
-        return text.substr(0, MAX_TITLE - 2) + "...";
-    }
-    else {
-        return text;
-    }
-};
-
-// Helper to disconnect more signals at once
-const CSignalBundle = new Lang.Class({
-
-    Name: "WindowCornerPreview.signalBundle",
-
-    _init: function () {
-        this._connections = [];
-    },
-
-    tryConnect: function (actor, signal, callback) {
-        try {
-            let handle = actor.connect(signal, callback);
-            this._connections.push({actor: actor, handle: handle});
-        }
-
-        catch(e) {
-            logError(e, "CSignalBundle.tryConnect failed");
-        }
-    },
-
-    disconnectAll: function () {
-        for (let i = 0; i < this._connections.length; i++) {
-            try {
-                let connection = this._connections[i];
-                connection.actor.disconnect(connection.handle);
-                this._connections[i] = null;
-            }
-
-            catch(e) {
-                logError(e, "CSignalBundle.disconnectAll failed");
-            }
-        }
-        this._connections = [];
-    }
-});
-
 const PopupSliderMenuItem = new Lang.Class({
     Name: "WindowCornerPreview.PopupSliderMenuItem",
     Extends: PopupMenu.PopupBaseMenuItem,
 
-    _init: function (text, value, min, max, step, params) {
+    _init: function(text, value, min, max, step, params) {
 
         this.min = (min !== undefined ? min : 0.0);
         this.max = (max !== undefined ? max : 1.0);
@@ -189,7 +131,9 @@ const PopupSliderMenuItem = new Lang.Class({
 
         this.parent(params);
 
-        this.label = new St.Label({text: text || ""});
+        this.label = new St.Label({
+            text: text || ""
+        });
         // Setting text to false allow a little bit extra space on the left
         if (text !== false) this.actor.add_child(this.label);
         this.actor.label_actor = this.label;
@@ -198,7 +142,7 @@ const PopupSliderMenuItem = new Lang.Class({
         this.value = this.defaultValue;
 
         // PopupSliderMenuItem emits its own value-change event which provides a normalized value
-        this.slider.connect("value-changed", Lang.bind(this, function (x) {
+        this.slider.connect("value-changed", Lang.bind(this, function(x) {
             let normalValue = this.value;
             // Force the slider to set position on a stepped value (if necessary)
             if (this.step !== undefined) this.value = normalValue;
@@ -207,7 +151,10 @@ const PopupSliderMenuItem = new Lang.Class({
             this._lastValue = normalValue;
         }));
 
-        this.actor.add(this.slider.actor, {expand: true, align: St.Align.END});
+        this.actor.add(this.slider.actor, {
+            expand: true,
+            align: St.Align.END
+        });
     },
 
     get value() {
@@ -224,7 +171,7 @@ const CWindowCornerPreview = new Lang.Class({
 
     Name: "WindowCornerPreview.preview",
 
-    _init: function () {
+    _init: function() {
         this._corner = DEFAULT_CORNER;
         this._zoom = DEFAULT_ZOOM;
 
@@ -240,12 +187,12 @@ const CWindowCornerPreview = new Lang.Class({
         this._container = null;
         this._window = null;
 
-        this._windowSignals = new CSignalBundle();
-        this._environmentSignals = new CSignalBundle();
+        this._windowSignals = new SignalConnector();
+        this._environmentSignals = new SignalConnector();
         log("INIZIO");
     },
 
-    _onClick: function (actor, event) {
+    _onClick: function(actor, event) {
         let button = event.get_button();
         let state = event.get_state();
 
@@ -256,10 +203,10 @@ const CWindowCornerPreview = new Lang.Class({
 
         // Otherwise move the preview to another corner
         else {
-            switch(button) {
+            switch (button) {
                 case GTK_MOUSE_RIGHT_BUTTON:
                     this.corner += 1;
-                break;
+                    break;
 
                 case GTK_MOUSE_MIDDLE_BUTTON:
                     this.corner += -1;
@@ -271,7 +218,7 @@ const CWindowCornerPreview = new Lang.Class({
         }
     },
 
-    _onScroll: function (actor, event) {
+    _onScroll: function(actor, event) {
         let scroll_direction = event.get_scroll_direction();
 
         let direction;
@@ -291,12 +238,13 @@ const CWindowCornerPreview = new Lang.Class({
                 direction = 0.0;
         }
 
-        if (! direction) return; // Clutter.EVENT_PROPAGATE;
+        if (!direction) return; // Clutter.EVENT_PROPAGATE;
 
         // On mouse over it's normally pretty transparent, but user needs to see more for adjusting it
         Tweener.addTween(this._container, {
             opacity: TWEEN_OPACITY_SEMIFULL,
-            time: TWEEN_TIME_SHORT, transition: "easeOutQuad"
+            time: TWEEN_TIME_SHORT,
+            transition: "easeOutQuad"
         });
 
         // Coords are absolute, screen related
@@ -314,13 +262,34 @@ const CWindowCornerPreview = new Lang.Class({
         let deltaTop = Math.abs(actorY1 - mouseY);
         let deltaBottom = Math.abs(actorY2 - mouseY);
 
-        let sortedDeltas = [
-            {property: "leftCropRatio", pxDistance: deltaLeft, comparedDistance: deltaLeft / actorWidth, direction: -direction},
-            {property: "rightCropRatio", pxDistance: deltaRight, comparedDistance: deltaRight / actorWidth, direction: -direction},
-            {property: "topCropRatio", pxDistance: deltaTop, comparedDistance: deltaTop / actorHeight, direction: -direction /* feels more natural */},
-            {property: "bottomCropRatio", pxDistance: deltaBottom, comparedDistance: deltaBottom / actorHeight, direction: -direction}
+        let sortedDeltas = [{
+                property: "leftCropRatio",
+                pxDistance: deltaLeft,
+                comparedDistance: deltaLeft / actorWidth,
+                direction: -direction
+            },
+            {
+                property: "rightCropRatio",
+                pxDistance: deltaRight,
+                comparedDistance: deltaRight / actorWidth,
+                direction: -direction
+            },
+            {
+                property: "topCropRatio",
+                pxDistance: deltaTop,
+                comparedDistance: deltaTop / actorHeight,
+                direction: -direction /* feels more natural */
+            },
+            {
+                property: "bottomCropRatio",
+                pxDistance: deltaBottom,
+                comparedDistance: deltaBottom / actorHeight,
+                direction: -direction
+            }
         ];
-        sortedDeltas.sort(function (a, b) {return a.pxDistance - b.pxDistance});
+        sortedDeltas.sort(function(a, b) {
+            return a.pxDistance - b.pxDistance
+        });
         let deltaMinimum = sortedDeltas[0];
 
         // Scrolling inside the preview triggers the zoom
@@ -334,7 +303,7 @@ const CWindowCornerPreview = new Lang.Class({
         }
     },
 
-    _onEnter: function (actor, event) {
+    _onEnter: function(actor, event) {
         let [x, y, state] = global.get_pointer();
 
         // SHIFT: ignore standard behavior
@@ -349,7 +318,7 @@ const CWindowCornerPreview = new Lang.Class({
         });
     },
 
-    _onLeave: function () {
+    _onLeave: function() {
         Tweener.addTween(this._container, {
             opacity: TWEEN_OPACITY_FULL,
             time: TWEEN_TIME_MEDIUM,
@@ -357,17 +326,17 @@ const CWindowCornerPreview = new Lang.Class({
         });
     },
 
-    _onParamsChange: function () {
+    _onParamsChange: function() {
         // Zoom or crop properties changed
         if (this.enabled) this._setThumbnail();
     },
 
-    _onWindowUnmanaged: function () {
+    _onWindowUnmanaged: function() {
         this._disable();
         this._window = null;
     },
 
-    _adjustVisibility: function (options) {
+    _adjustVisibility: function(options) {
         options = options || {};
 
         /*
@@ -388,18 +357,18 @@ const CWindowCornerPreview = new Lang.Class({
             };
         */
 
-        if (! this._container) {
+        if (!this._container) {
             if (options.onComplete) options.onComplete();
             return;
         }
 
         // Hide when overView is shown, or source window is on top, or user related reasons
-        let canBeShownOnFocus = (! this._focusHidden) || (global.display.focus_window !== this._window);
+        let canBeShownOnFocus = (!this._focusHidden) || (global.display.focus_window !== this._window);
 
-        let calculatedVisibility =  this._window
-                                    && this._naturalVisibility
-                                    && canBeShownOnFocus
-                                    && (! Main.overview.visibleTarget);
+        let calculatedVisibility = this._window &&
+            this._naturalVisibility &&
+            canBeShownOnFocus &&
+            (!Main.overview.visibleTarget);
 
         let calculatedOpacity = (calculatedVisibility) ? TWEEN_OPACITY_FULL : TWEEN_OPACITY_NULL;
 
@@ -418,7 +387,7 @@ const CWindowCornerPreview = new Lang.Class({
         // Animation needed (either from less to more opacity or viceversa)
         else {
             this._container.reactive = false;
-            if (! this._container.visible) {
+            if (!this._container.visible) {
                 this._container.set_opacity(TWEEN_OPACITY_NULL);
                 this._container.visible = true;
             }
@@ -427,7 +396,7 @@ const CWindowCornerPreview = new Lang.Class({
                 opacity: calculatedOpacity,
                 time: TWEEN_TIME_SHORT,
                 transition: "easeOutQuad",
-                onComplete: Lang.bind(this, function () {
+                onComplete: Lang.bind(this, function() {
                     this._container.visible = calculatedVisibility;
                     this._container.reactive = true;
                     if (options.onComplete) options.onComplete();
@@ -436,25 +405,25 @@ const CWindowCornerPreview = new Lang.Class({
         }
     },
 
-    _onNotifyFocusWindow: function () {
+    _onNotifyFocusWindow: function() {
         this._adjustVisibility();
     },
 
-    _onOverviewShowing: function () {
+    _onOverviewShowing: function() {
         this._adjustVisibility();
     },
 
-    _onOverviewHiding: function () {
+    _onOverviewHiding: function() {
         this._adjustVisibility();
     },
 
-    _onMonitorsChanged: function () {
+    _onMonitorsChanged: function() {
         // TODO multiple monitors issue, the preview doesn't stick to the right monitor
         log("Monitors changed");
     },
 
     // Align the preview along the chrome area
-    _setPosition: function () {
+    _setPosition: function() {
 
         let posX, posY;
 
@@ -492,13 +461,13 @@ const CWindowCornerPreview = new Lang.Class({
     },
 
     // Create a window thumbnail and adds it to the container
-    _setThumbnail: function () {
+    _setThumbnail: function() {
         let mutw = this._window.get_compositor_private();
 
-        if (! mutw) return;
+        if (!mutw) return;
 
         let windowTexture = mutw.get_texture();
-        let [windowWidth, windowHeight] =  windowTexture.get_size();
+        let [windowWidth, windowHeight] = windowTexture.get_size();
 
         /* To crop the window texture, for now I've found that:
            1. Using a clip rect on Clutter.clone will hide the outside portion but also will KEEP the space along it
@@ -536,7 +505,7 @@ const CWindowCornerPreview = new Lang.Class({
         let targetRatio = rectMonitor.width * this.zoom / windowWidth;
 
         // No magnification allowed (KNOWN ISSUE: there's no height control if used, it still needs optimizing)
-        if (! SETTING_MAGNIFICATION_ALLOWED && targetRatio > 1.0) {
+        if (!SETTING_MAGNIFICATION_ALLOWED && targetRatio > 1.0) {
             targetRatio = 1.0;
             this._zoom = windowWidth / rectMonitor.width; // do NOT set this.zoom (the encapsulated prop for _zoom) or it will be looping!
         }
@@ -564,7 +533,7 @@ const CWindowCornerPreview = new Lang.Class({
 
         });
 
-        this._container.foreach(function (actor) {
+        this._container.foreach(function(actor) {
             actor.destroy();
         });
 
@@ -574,7 +543,7 @@ const CWindowCornerPreview = new Lang.Class({
     },
 
     // xCropRatio properties normalize their opposite counterpart, so that margins won't ever overlap
-    set leftCropRatio (value) {
+    set leftCropRatio(value) {
         // [0, MAX] range
         this._leftCropRatio = Math.min(MAX_CROP_RATIO, Math.max(0.0, value));
         // Decrease the opposite margin if necessary
@@ -582,19 +551,19 @@ const CWindowCornerPreview = new Lang.Class({
         this._onParamsChange();
     },
 
-    set rightCropRatio (value) {
+    set rightCropRatio(value) {
         this._rightCropRatio = Math.min(MAX_CROP_RATIO, Math.max(0.0, value));
         this._leftCropRatio = Math.min(this._leftCropRatio, MAX_CROP_RATIO - this._rightCropRatio);
         this._onParamsChange();
     },
 
-    set topCropRatio (value) {
+    set topCropRatio(value) {
         this._topCropRatio = Math.min(MAX_CROP_RATIO, Math.max(0.0, value));
         this._bottomCropRatio = Math.min(this._bottomCropRatio, MAX_CROP_RATIO - this._topCropRatio);
         this._onParamsChange();
     },
 
-    set bottomCropRatio (value) {
+    set bottomCropRatio(value) {
         this._bottomCropRatio = Math.min(MAX_CROP_RATIO, Math.max(0.0, value));
         this._topCropRatio = Math.min(this._topCropRatio, MAX_CROP_RATIO - this._bottomCropRatio);
         this._onParamsChange();
@@ -616,7 +585,7 @@ const CWindowCornerPreview = new Lang.Class({
         return this._bottomCropRatio;
     },
 
-    set zoom (value) {
+    set zoom(value) {
         this._zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value));
         this._onParamsChange();
     },
@@ -644,23 +613,25 @@ const CWindowCornerPreview = new Lang.Class({
     },
 
     get enabled() {
-        return !! this._container;
+        return !!this._container;
     },
 
-    show: function () {
+    show: function() {
         this._naturalVisibility = true;
         if (this._window) this._adjustVisibility();
     },
 
     toggle: function(value) {
-        if (! arguments.length) log("toggle with no args");
+        if (!arguments.length) log("toggle with no args");
 
-        (value) ? this.show() : this.passAway();
+        (value) ? this.show(): this.passAway();
     },
 
-    passAway: function () {
+    passAway: function() {
         this._naturalVisibility = false;
-        this._adjustVisibility({onComplete: Lang.bind(this, this._disable)});
+        this._adjustVisibility({
+            onComplete: Lang.bind(this, this._disable)
+        });
     },
 
     get window() {
@@ -671,14 +642,14 @@ const CWindowCornerPreview = new Lang.Class({
         this._enable(metawindow);
     },
 
-    _enable: function (metawindow) {
+    _enable: function(metawindow) {
         let isSwitchingWindow = this.enabled;
 
         this._disable();
 
         this._window = metawindow;
 
-        if (! metawindow) return;
+        if (!metawindow) return;
 
         this._windowSignals.tryConnect(this._window, "unmanaged", Lang.bind(this, this._onWindowUnmanaged));
         // Version 3.10 does not support size-changed
@@ -693,7 +664,9 @@ const CWindowCornerPreview = new Lang.Class({
         this._environmentSignals.tryConnect(DisplayWrapper.getMonitorManager(), "monitors-changed", Lang.bind(this, this._onMonitorsChanged));
 
 
-        this._container = new St.Button({style_class: "window-corner-preview"});
+        this._container = new St.Button({
+            style_class: "window-corner-preview"
+        });
         // Force content not to overlap, allowing cropping
         this._container.set_clip_to_allocation(true);
 
@@ -708,16 +681,18 @@ const CWindowCornerPreview = new Lang.Class({
         this._setThumbnail();
 
         // isSwitchingWindow = false means user only changed window, but preview was on, so does not animate
-        this._adjustVisibility({noAnimate: isSwitchingWindow});
+        this._adjustVisibility({
+            noAnimate: isSwitchingWindow
+        });
     },
 
-    _disable: function () {
+    _disable: function() {
         log("disable", this._container);
 
         this._windowSignals.disconnectAll();
         this._environmentSignals.disconnectAll();
 
-        if (! this._container) return;
+        if (!this._container) return;
 
         Main.layoutManager.removeChrome(this._container);
         this._container.destroy();
@@ -732,16 +707,16 @@ const CWindowCornerPreviewMenu = new Lang.Class({
     Name: "WindowCornerPreview.indicator",
     Extends: PanelMenu.Button,
 
-    _init: function () {
+    _init: function() {
         this.parent(null, "WindowCornerPreview.indicator");
     },
 
     // Handler to turn preview on / off
-    _onMenuIsEnabled: function (item) {
+    _onMenuIsEnabled: function(item) {
         this.preview.toggle(item.state);
     },
 
-    _updateSliders: function () {
+    _updateSliders: function() {
         this.menuZoom.value = this.preview.zoom;
         this.menuZoomLabel.label.set_text("Monitor Zoom:  " + Math.floor(this.preview.zoom * 100).toString() + "%");
 
@@ -751,49 +726,49 @@ const CWindowCornerPreviewMenu = new Lang.Class({
         this.menuBottomCrop.value = this.preview.bottomCropRatio;
     },
 
-    _onZoomChanged: function (source, value) {
+    _onZoomChanged: function(source, value) {
         this.preview.zoom = value;
         this._updateSliders();
     },
 
-    _onLeftCropChanged: function (source, value) {
+    _onLeftCropChanged: function(source, value) {
         this.preview.leftCropRatio = value;
         this._updateSliders();
     },
 
-    _onRightCropChanged: function (source, value) {
+    _onRightCropChanged: function(source, value) {
         this.preview.rightCropRatio = value;
         this._updateSliders();
     },
 
-    _onTopCropChanged: function (source, value) {
+    _onTopCropChanged: function(source, value) {
         this.preview.topCropRatio = value;
         this._updateSliders();
     },
 
-    _onBottomCropChanged: function (source, value) {
+    _onBottomCropChanged: function(source, value) {
         this.preview.bottomCropRatio = value;
         this._updateSliders();
     },
 
-    _onSettings: function () {
+    _onSettings: function() {
         Main.Util.trySpawnCommandLine("gnome-shell-extension-prefs window-corner-preview@fabiomereu.it");
     },
 
     // Update windows list and other menus before menu pops up
-    _onUserTriggered: function () {
+    _onUserTriggered: function() {
         this.menuIsEnabled.setToggleState(this.preview.enabled);
         this._updateSliders();
         this.menuWindows.menu.removeAll();
-        getWorkspaceWindowsArray().forEach(function (workspace, i) {
+        getWorkspaceWindowsArray().forEach(function(workspace, i) {
             if (i > 0) {
                 this.menuWindows.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
             }
 
             // Populate window list on submenu
-            workspace.windows.forEach(function (window) {
+            workspace.windows.forEach(function(window) {
                 let winMenuItem = new PopupMenu.PopupMenuItem(spliceTitle(window.get_title()));
-                winMenuItem.connect("activate", Lang.bind(this, function () {
+                winMenuItem.connect("activate", Lang.bind(this, function() {
                     this.preview.window = window;
                     this.preview.show();
                 }));
@@ -803,7 +778,7 @@ const CWindowCornerPreviewMenu = new Lang.Class({
         }, this);
     },
 
-    _onSettingsChanged: function (settings, key) {
+    _onSettingsChanged: function(settings, key) {
         this.preview.focusHidden = this.settings.get_boolean(Prefs.SETTING_FOCUS_HIDDEN);
 
         switch (key) {
@@ -818,16 +793,22 @@ const CWindowCornerPreviewMenu = new Lang.Class({
 
     },
 
-    enable: function () {
+    enable: function() {
 
         // Add icon
-        this.icon = new St.Icon({ icon_name: "face-monkey-symbolic", style_class: "system-status-icon"});
+        this.icon = new St.Icon({
+            icon_name: "face-monkey-symbolic",
+            style_class: "system-status-icon"
+        });
         this.actor.add_actor(this.icon);
 
         // Prepare Menu...
 
         // 1. Preview ON/OFF
-        this.menuIsEnabled = new PopupMenu.PopupSwitchMenuItem("Preview", false, {hover: false, reactive: true});
+        this.menuIsEnabled = new PopupMenu.PopupSwitchMenuItem("Preview", false, {
+            hover: false,
+            reactive: true
+        });
         this.menuIsEnabled.connect("toggled", Lang.bind(this, this._onMenuIsEnabled));
         this.menu.addMenuItem(this.menuIsEnabled);
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
@@ -838,7 +819,10 @@ const CWindowCornerPreviewMenu = new Lang.Class({
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
         // 3a. Zoom label
-        this.menuZoomLabel = new PopupMenu.PopupMenuItem("", {activate: false, reactive: false});
+        this.menuZoomLabel = new PopupMenu.PopupMenuItem("", {
+            activate: false,
+            reactive: false
+        });
         this.menu.addMenuItem(this.menuZoomLabel);
 
         // 3b, Zoom slider
@@ -881,7 +865,7 @@ const CWindowCornerPreviewMenu = new Lang.Class({
 
     },
 
-    disable: function () {
+    disable: function() {
         this.menu.removeAll();
     }
 });
