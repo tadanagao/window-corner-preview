@@ -1,10 +1,13 @@
 "use strict";
 
+// Global modules
 const Lang = imports.lang;
 const Main = imports.ui.main;
 const St = imports.gi.St;
 const Tweener = imports.ui.tweener;
 const Clutter = imports.gi.Clutter;
+
+// Internal modules
 const ExtensionUtils = imports.misc.extensionUtils;
 const Me = ExtensionUtils.getCurrentExtension();
 const Polygnome = Me.imports.polygnome;
@@ -75,7 +78,6 @@ const WindowCornerPreview = new Lang.Class({
 
         this._windowSignals = new SignalConnector();
         this._environmentSignals = new SignalConnector();
-        log("INIZIO");
     },
 
     _onClick: function(actor, event) {

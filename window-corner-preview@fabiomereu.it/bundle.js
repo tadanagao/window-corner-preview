@@ -1,5 +1,6 @@
 "use strict";
 
+// Global modules
 const Lang = imports.lang;
 
 function normalizeRange(denormal, min, max, step) {
