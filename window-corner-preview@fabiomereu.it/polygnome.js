@@ -1,6 +1,9 @@
 // Contributor:
 // Scott Ames https://github.com/scottames
 
+// Global modules
+const Meta = imports.gi.Meta;
+
 // This is wrapper to maintain compatibility with GNOME-Shell 3.30+ as well as
 // previous versions.
 var DisplayWrapper = {
