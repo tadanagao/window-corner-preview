@@ -3,6 +3,7 @@
 // Global modules
 const Lang = imports.lang;
 const St = imports.gi.St;
+const Main = imports.ui.main;
 const PanelMenu = imports.ui.panelMenu;
 const PopupMenu = imports.ui.popupMenu;
 
@@ -10,8 +11,6 @@ const PopupMenu = imports.ui.popupMenu;
 const ExtensionUtils = imports.misc.extensionUtils;
 const Me = ExtensionUtils.getCurrentExtension();
 const PopupSliderMenuItem = Me.imports.popupSliderMenuItem.PopupSliderMenuItem;
-const Convenience = Me.imports.convenience;
-const Prefs = Me.imports.prefs;
 const Bundle = Me.imports.bundle;
 const Polygnome = Me.imports.polygnome;
 const Preview = Me.imports.preview;
@@ -67,35 +66,40 @@ const WindowCornerIndicator = new Lang.Class({
         this.menuZoom.value = this.preview.zoom;
         this.menuZoomLabel.label.set_text("Monitor Zoom:  " + Math.floor(this.preview.zoom * 100).toString() + "%");
 
-        this.menuLeftCrop.value = this.preview.leftCropRatio;
-        this.menuRightCrop.value = this.preview.rightCropRatio;
-        this.menuTopCrop.value = this.preview.topCropRatio;
-        this.menuBottomCrop.value = this.preview.bottomCropRatio;
+        this.menuLeftCrop.value = this.preview.leftCrop;
+        this.menuRightCrop.value = this.preview.rightCrop;
+        this.menuTopCrop.value = this.preview.topCrop;
+        this.menuBottomCrop.value = this.preview.bottomCrop;
     },
 
     _onZoomChanged: function(source, value) {
         this.preview.zoom = value;
         this._updateSliders();
+        this.preview.emit("zoom-changed");
     },
 
     _onLeftCropChanged: function(source, value) {
-        this.preview.leftCropRatio = value;
+        this.preview.leftCrop = value;
         this._updateSliders();
+        this.preview.emit("crop-changed");
     },
 
     _onRightCropChanged: function(source, value) {
-        this.preview.rightCropRatio = value;
+        this.preview.rightCrop = value;
         this._updateSliders();
+        this.preview.emit("crop-changed");
     },
 
     _onTopCropChanged: function(source, value) {
-        this.preview.topCropRatio = value;
+        this.preview.topCrop = value;
         this._updateSliders();
+        this.preview.emit("crop-changed");
     },
 
     _onBottomCropChanged: function(source, value) {
-        this.preview.bottomCropRatio = value;
+        this.preview.bottomCrop = value;
         this._updateSliders();
+        this.preview.emit("crop-changed");            
     },
 
     _onSettings: function() {
@@ -123,21 +127,6 @@ const WindowCornerIndicator = new Lang.Class({
                 this.menuWindows.menu.addMenuItem(winMenuItem);
             }, this);
         }, this);
-    },
-
-    _onSettingsChanged: function(settings, key) {
-        this.preview.focusHidden = this.settings.get_boolean(Prefs.SETTING_FOCUS_HIDDEN);
-
-        switch (key) {
-            case Prefs.SETTING_BEHAVIOR_MODE:
-                //log("behaviour", key);
-                break;
-
-            case Prefs.SETTING_FOCUS_HIDDEN:
-                //log("focus", key);
-                break;
-        }
-
     },
 
     enable: function() {
@@ -204,11 +193,6 @@ const WindowCornerIndicator = new Lang.Class({
         this.menu.addMenuItem(this.menuSettings);
 
         this.actor.connect("enter-event", Lang.bind(this, this._onUserTriggered));
-
-        this.settings = Convenience.getSettings();
-
-        this.settings.connect("changed", Lang.bind(this, this._onSettingsChanged));
-        this._onSettingsChanged();
 
     },
 

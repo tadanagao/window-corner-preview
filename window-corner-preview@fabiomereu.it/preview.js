@@ -6,15 +6,16 @@ const Main = imports.ui.main;
 const St = imports.gi.St;
 const Tweener = imports.ui.tweener;
 const Clutter = imports.gi.Clutter;
+const Signals = imports.signals;
 
 // Internal modules
 const ExtensionUtils = imports.misc.extensionUtils;
 const Me = ExtensionUtils.getCurrentExtension();
 const Polygnome = Me.imports.polygnome;
-const Bundle = Me.imports.bundle;
+const Signaling = Me.imports.signaling;
 
 const DisplayWrapper = Polygnome.DisplayWrapper;
-const SignalConnector = Bundle.SignalConnector;
+const SignalConnector = Signaling.SignalConnector;
 
 // At the moment magnification hasn't been tested and it's clumsy
 const SETTING_MAGNIFICATION_ALLOWED = false;
@@ -61,13 +62,14 @@ const WindowCornerPreview = new Lang.Class({
     Name: "WindowCornerPreview.preview",
 
     _init: function() {
+
         this._corner = DEFAULT_CORNER;
         this._zoom = DEFAULT_ZOOM;
 
-        this._leftCropRatio = DEFAULT_CROP_RATIO;
-        this._rightCropRatio = DEFAULT_CROP_RATIO;
-        this._topCropRatio = DEFAULT_CROP_RATIO;
-        this._bottomCropRatio = DEFAULT_CROP_RATIO;
+        this._leftCrop = DEFAULT_CROP_RATIO;
+        this._rightCrop = DEFAULT_CROP_RATIO;
+        this._topCrop = DEFAULT_CROP_RATIO;
+        this._bottomCrop = DEFAULT_CROP_RATIO;
 
         // The following properties are documented on _adjustVisibility()
         this._naturalVisibility = false;
@@ -78,6 +80,8 @@ const WindowCornerPreview = new Lang.Class({
 
         this._windowSignals = new SignalConnector();
         this._environmentSignals = new SignalConnector();
+
+        this._handleZoomChange = null;
     },
 
     _onClick: function(actor, event) {
@@ -103,6 +107,7 @@ const WindowCornerPreview = new Lang.Class({
                 default: // GTK_MOUSE_LEFT_BUTTON:
                     this.corner += 2;
             }
+            this.emit("corner-changed");
         }
     },
 
@@ -151,25 +156,25 @@ const WindowCornerPreview = new Lang.Class({
         let deltaBottom = Math.abs(actorY2 - mouseY);
 
         let sortedDeltas = [{
-                property: "leftCropRatio",
+                property: "leftCrop",
                 pxDistance: deltaLeft,
                 comparedDistance: deltaLeft / actorWidth,
                 direction: -direction
             },
             {
-                property: "rightCropRatio",
+                property: "rightCrop",
                 pxDistance: deltaRight,
                 comparedDistance: deltaRight / actorWidth,
                 direction: -direction
             },
             {
-                property: "topCropRatio",
+                property: "topCrop",
                 pxDistance: deltaTop,
                 comparedDistance: deltaTop / actorHeight,
                 direction: -direction /* feels more natural */
             },
             {
-                property: "bottomCropRatio",
+                property: "bottomCrop",
                 pxDistance: deltaBottom,
                 comparedDistance: deltaBottom / actorHeight,
                 direction: -direction
@@ -183,11 +188,13 @@ const WindowCornerPreview = new Lang.Class({
         // Scrolling inside the preview triggers the zoom
         if (deltaMinimum.comparedDistance > SCROLL_ACTOR_MARGIN) {
             this.zoom += direction * SCROLL_ZOOM_STEP;
+            this.emit("zoom-changed");
         }
 
         // Scrolling along the margins triggers the cropping instead
         else {
             this[deltaMinimum.property] += deltaMinimum.direction * SCROLL_CROP_STEP;
+            this.emit("crop-changed");
         }
     },
 
@@ -313,6 +320,10 @@ const WindowCornerPreview = new Lang.Class({
     // Align the preview along the chrome area
     _setPosition: function() {
 
+        if (! this._container) {
+            return;
+        }
+
         let posX, posY;
 
         let rectMonitor = Main.layoutManager.getWorkAreaForMonitor(DisplayWrapper.getScreen().get_current_monitor());
@@ -377,10 +388,10 @@ const WindowCornerPreview = new Lang.Class({
 
         // Get absolute margin values for cropping
         let margins = {
-            left: windowWidth * this.leftCropRatio,
-            right: windowWidth * this.rightCropRatio,
-            top: windowHeight * this.topCropRatio,
-            bottom: windowHeight * this.bottomCropRatio,
+            left: windowWidth * this.leftCrop,
+            right: windowWidth * this.rightCrop,
+            top: windowHeight * this.topCrop,
+            bottom: windowHeight * this.bottomCrop,
         };
 
         // Calculate the size of the cropped rect (based on the 100% window size)
@@ -430,47 +441,47 @@ const WindowCornerPreview = new Lang.Class({
         this._setPosition();
     },
 
-    // xCropRatio properties normalize their opposite counterpart, so that margins won't ever overlap
-    set leftCropRatio(value) {
+    // xCrop properties normalize their opposite counterpart, so that margins won't ever overlap
+    set leftCrop(value) {
         // [0, MAX] range
-        this._leftCropRatio = Math.min(MAX_CROP_RATIO, Math.max(0.0, value));
+        this._leftCrop = Math.min(MAX_CROP_RATIO, Math.max(0.0, value));
         // Decrease the opposite margin if necessary
-        this._rightCropRatio = Math.min(this._rightCropRatio, MAX_CROP_RATIO - this._leftCropRatio);
+        this._rightCrop = Math.min(this._rightCrop, MAX_CROP_RATIO - this._leftCrop);
         this._onParamsChange();
     },
 
-    set rightCropRatio(value) {
-        this._rightCropRatio = Math.min(MAX_CROP_RATIO, Math.max(0.0, value));
-        this._leftCropRatio = Math.min(this._leftCropRatio, MAX_CROP_RATIO - this._rightCropRatio);
+    set rightCrop(value) {
+        this._rightCrop = Math.min(MAX_CROP_RATIO, Math.max(0.0, value));
+        this._leftCrop = Math.min(this._leftCrop, MAX_CROP_RATIO - this._rightCrop);
         this._onParamsChange();
     },
 
-    set topCropRatio(value) {
-        this._topCropRatio = Math.min(MAX_CROP_RATIO, Math.max(0.0, value));
-        this._bottomCropRatio = Math.min(this._bottomCropRatio, MAX_CROP_RATIO - this._topCropRatio);
+    set topCrop(value) {
+        this._topCrop = Math.min(MAX_CROP_RATIO, Math.max(0.0, value));
+        this._bottomCrop = Math.min(this._bottomCrop, MAX_CROP_RATIO - this._topCrop);
         this._onParamsChange();
     },
 
-    set bottomCropRatio(value) {
-        this._bottomCropRatio = Math.min(MAX_CROP_RATIO, Math.max(0.0, value));
-        this._topCropRatio = Math.min(this._topCropRatio, MAX_CROP_RATIO - this._bottomCropRatio);
+    set bottomCrop(value) {
+        this._bottomCrop = Math.min(MAX_CROP_RATIO, Math.max(0.0, value));
+        this._topCrop = Math.min(this._topCrop, MAX_CROP_RATIO - this._bottomCrop);
         this._onParamsChange();
     },
 
-    get leftCropRatio() {
-        return this._leftCropRatio;
+    get leftCrop() {
+        return this._leftCrop;
     },
 
-    get rightCropRatio() {
-        return this._rightCropRatio;
+    get rightCrop() {
+        return this._rightCrop;
     },
 
-    get topCropRatio() {
-        return this._topCropRatio;
+    get topCrop() {
+        return this._topCrop;
     },
 
-    get bottomCropRatio() {
-        return this._bottomCropRatio;
+    get bottomCrop() {
+        return this._bottomCrop;
     },
 
     set zoom(value) {
@@ -542,7 +553,6 @@ const WindowCornerPreview = new Lang.Class({
         this._windowSignals.tryConnect(this._window, "unmanaged", Lang.bind(this, this._onWindowUnmanaged));
         // Version 3.10 does not support size-changed
         this._windowSignals.tryConnect(this._window, "size-changed", Lang.bind(this, this._setThumbnail));
-        //_windowSignals.tryConnect(_window, "notify::minimized", log.bind(null, "minimized"));
         this._windowSignals.tryConnect(this._window, "notify::maximized-vertically", Lang.bind(this, this._setThumbnail));
         this._windowSignals.tryConnect(this._window, "notify::maximized-horizontally", Lang.bind(this, this._setThumbnail));
 
@@ -575,7 +585,6 @@ const WindowCornerPreview = new Lang.Class({
     },
 
     _disable: function() {
-        log("disable", this._container);
 
         this._windowSignals.disconnectAll();
         this._environmentSignals.disconnectAll();
@@ -587,3 +596,5 @@ const WindowCornerPreview = new Lang.Class({
         this._container = null;
     }
 })
+
+Signals.addSignalMethods(WindowCornerPreview.prototype);
