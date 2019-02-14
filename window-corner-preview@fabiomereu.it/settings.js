@@ -18,6 +18,7 @@ const SETTING_INITIAL_RIGHT_CROP = "initial-right-crop";
 const SETTING_INITIAL_TOP_CROP = "initial-top-crop";
 const SETTING_INITIAL_BOTTOM_CROP = "initial-bottom-crop";
 const SETTING_INITIAL_CORNER = "initial-corner";
+const SETTING_LAST_WINDOW_HASH = "last-window-hash";
 
 const WindowCornerSettings = new Lang.Class({
 
@@ -98,6 +99,14 @@ const WindowCornerSettings = new Lang.Class({
 
     set behaviorMode(value) {
         this._settings.set_string(SETTING_BEHAVIOR_MODE, value);
+    },
+
+    get lastWindowHash() {
+        return this._settings.get_string(SETTING_LAST_WINDOW_HASH);
+    },
+
+    set lastWindowHash(value) {
+        this._settings.set_string(SETTING_LAST_WINDOW_HASH, value);
     }
 });
 

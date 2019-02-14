@@ -24,3 +24,17 @@ function spliceTitle(text, max) {
         return text;
     }
 };
+
+function getWindowSignature(metawindow) {
+    return "".concat(
+        metawindow.get_pid(),
+        metawindow.get_wm_class() || metawindow.get_title(),
+        metawindow.get_stable_sequence()
+    );
+}
+
+function getMetawindows() {
+    return global.get_window_actors().map(function (actor) {
+        return actor.get_meta_window();
+    });
+}

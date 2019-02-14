@@ -227,8 +227,11 @@ const WindowCornerPreview = new Lang.Class({
     },
 
     _onWindowUnmanaged: function() {
+        log("LA FINESTRA E' UNMANGED")
         this._disable();
         this._window = null;
+        // gnome-shell --replace will cause this event too
+       /////// this.emit("window-changed", null); FIXME
     },
 
     _adjustVisibility: function(options) {
@@ -520,12 +523,6 @@ const WindowCornerPreview = new Lang.Class({
         if (this._window) this._adjustVisibility();
     },
 
-    toggle: function(value) {
-        if (! arguments.length) log("toggle with no args");
-
-        (value) ? this.show(): this.passAway();
-    },
-
     passAway: function() {
         this._naturalVisibility = false;
         this._adjustVisibility({
@@ -539,6 +536,7 @@ const WindowCornerPreview = new Lang.Class({
 
     set window(metawindow) {
         this._enable(metawindow);
+        this.emit("window-changed", metawindow);
     },
 
     _enable: function(metawindow) {

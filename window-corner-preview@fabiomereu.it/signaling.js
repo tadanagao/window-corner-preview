@@ -26,6 +26,20 @@ const SignalConnector = new Lang.Class({
         }
     },
 
+    tryConnectAfter: function(actor, signal, callback) {
+        try {
+            let handle = actor.connect_after(signal, callback);
+            this._connections.push({
+                actor: actor,
+                handle: handle
+            });
+        }
+
+        catch (e) {
+            logError(e, "SignalConnector.tryConnectAfter failed");
+        }
+    },
+
     disconnectAll: function() {
         for (let i = 0; i < this._connections.length; i++) {
             try {
