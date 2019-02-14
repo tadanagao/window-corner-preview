@@ -27,7 +27,7 @@ const CORNER_BOTTOM_LEFT = 3;
 const DEFAULT_CORNER = CORNER_TOP_RIGHT;
 
 const MIN_ZOOM = 0.10; // User shouldn't be able to make the preview too small or big, as it may break normal experience
-const MAX_ZOOM = 0.75; // FIXME
+const MAX_ZOOM = 0.75;
 const DEFAULT_ZOOM = 0.20;
 
 const MAX_CROP_RATIO = 0.85;
@@ -227,11 +227,10 @@ const WindowCornerPreview = new Lang.Class({
     },
 
     _onWindowUnmanaged: function() {
-        log("LA FINESTRA E' UNMANGED")
-        this._disable();
+        this.disable();
         this._window = null;
         // gnome-shell --replace will cause this event too
-       /////// this.emit("window-changed", null); FIXME
+        this.emit("window-changed", null);
     },
 
     _adjustVisibility: function(options) {
@@ -364,6 +363,15 @@ const WindowCornerPreview = new Lang.Class({
 
     // Create a window thumbnail and adds it to the container
     _setThumbnail: function() {
+
+        if (! this._container) return;
+
+        this._container.foreach(function(actor) {
+            actor.destroy();
+        });
+
+        if (! this._window) return;
+
         let mutw = this._window.get_compositor_private();
 
         if (! mutw) return;
@@ -433,10 +441,6 @@ const WindowCornerPreview = new Lang.Class({
             margin_bottom: 0,
             margin_top: 0
 
-        });
-
-        this._container.foreach(function(actor) {
-            actor.destroy();
         });
 
         this._container.add_actor(thumbnail);
@@ -518,15 +522,35 @@ const WindowCornerPreview = new Lang.Class({
         return !!this._container;
     },
 
-    show: function() {
+    get visible() {
+        return this._container && this._window && this._naturalVisibility;
+    },
+
+    show: function(onComplete) {
         this._naturalVisibility = true;
-        if (this._window) this._adjustVisibility();
+        this._adjustVisibility({
+            onComplete: onComplete
+        });
+    },
+
+    hide: function(onComplete) {
+        this._naturalVisibility = false;
+        this._adjustVisibility({
+            onComplete: onComplete
+        });
+    },
+
+    toggle: function(onComplete) {
+        this._naturalVisibility = !this._naturalVisibility;
+        this._adjustVisibility({
+            onComplete: onComplete
+        });
     },
 
     passAway: function() {
         this._naturalVisibility = false;
         this._adjustVisibility({
-            onComplete: Lang.bind(this, this._disable)
+            onComplete: Lang.bind(this, this.disable)
         });
     },
 
@@ -535,30 +559,36 @@ const WindowCornerPreview = new Lang.Class({
     },
 
     set window(metawindow) {
-        this._enable(metawindow);
-        this.emit("window-changed", metawindow);
-    },
 
-    _enable: function(metawindow) {
-        let isSwitchingWindow = this.enabled;
+        this.enable();
 
-        this._disable();
+        this._windowSignals.disconnectAll();
 
         this._window = metawindow;
 
-        if (! metawindow) return;
+        if (metawindow) {
+            this._windowSignals.tryConnect(metawindow, "unmanaged", Lang.bind(this, this._onWindowUnmanaged));
+            // Version 3.10 does not support size-changed
+            this._windowSignals.tryConnect(metawindow, "size-changed", Lang.bind(this, this._setThumbnail));
+            this._windowSignals.tryConnect(metawindow, "notify::maximized-vertically", Lang.bind(this, this._setThumbnail));
+            this._windowSignals.tryConnect(metawindow, "notify::maximized-horizontally", Lang.bind(this, this._setThumbnail));
+        }
 
-        this._windowSignals.tryConnect(this._window, "unmanaged", Lang.bind(this, this._onWindowUnmanaged));
-        // Version 3.10 does not support size-changed
-        this._windowSignals.tryConnect(this._window, "size-changed", Lang.bind(this, this._setThumbnail));
-        this._windowSignals.tryConnect(this._window, "notify::maximized-vertically", Lang.bind(this, this._setThumbnail));
-        this._windowSignals.tryConnect(this._window, "notify::maximized-horizontally", Lang.bind(this, this._setThumbnail));
+        this._setThumbnail();
+
+        this.emit("window-changed", metawindow);
+    },
+
+    enable: function() {
+
+        if (this._container) return;
+
+        let isSwitchingWindow = this.enabled;
 
         this._environmentSignals.tryConnect(Main.overview, "showing", Lang.bind(this, this._onOverviewShowing));
         this._environmentSignals.tryConnect(Main.overview, "hiding", Lang.bind(this, this._onOverviewHiding));
         this._environmentSignals.tryConnect(global.display, "notify::focus-window", Lang.bind(this, this._onNotifyFocusWindow));
         this._environmentSignals.tryConnect(DisplayWrapper.getMonitorManager(), "monitors-changed", Lang.bind(this, this._onMonitorsChanged));
-
 
         this._container = new St.Button({
             style_class: "window-corner-preview"
@@ -574,15 +604,15 @@ const WindowCornerPreview = new Lang.Class({
 
         this._container.visible = false;
         Main.layoutManager.addChrome(this._container);
-        this._setThumbnail();
 
+        return;
         // isSwitchingWindow = false means user only changed window, but preview was on, so does not animate
         this._adjustVisibility({
             noAnimate: isSwitchingWindow
         });
     },
 
-    _disable: function() {
+    disable: function() {
 
         this._windowSignals.disconnectAll();
         this._environmentSignals.disconnectAll();

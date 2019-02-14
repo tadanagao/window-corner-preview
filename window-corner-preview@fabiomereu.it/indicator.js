@@ -37,13 +37,7 @@ const WindowCornerIndicator = new Lang.Class({
 
     // Handler to turn preview on / off
     _onMenuIsEnabled: function(item) {
-        if (this.preview.window) {
-            this._lastWindow = this.preview.window;
-            this.preview.window = null;
-        }
-        else if (this._lastWindow) {
-            this.preview.window = this._lastWindow;
-        }
+        (item.state) ? this.preview.show() : this.preview.hide();
     },
 
     _updateSliders: function() {
@@ -92,8 +86,9 @@ const WindowCornerIndicator = new Lang.Class({
 
     // Update windows list and other menus before menu pops up
     _onUserTriggered: function() {
-        this.menuIsEnabled.setToggleState(this.preview.enabled);
-        this._updateSliders();
+        this.menuIsEnabled.setToggleState(this.preview.visible);
+        this.menuIsEnabled.actor.reactive = this.preview.window;
+        this._updateSliders()
         this.menuWindows.menu.removeAll();
         getWorkspaceWindowsArray().forEach(function(workspace, i) {
             if (i > 0) {

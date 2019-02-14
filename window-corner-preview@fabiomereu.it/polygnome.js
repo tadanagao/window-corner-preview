@@ -43,3 +43,9 @@ function getWorkspaces() {
     }
     return workspaces;
 }
+
+function getMetawindows() {
+    return global.get_window_actors().map(function (actor) {
+        return actor.get_meta_window();
+    });
+}

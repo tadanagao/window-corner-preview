@@ -40,7 +40,8 @@ const WindowCornerSettings = Settings.WindowCornerSettings;
 const SignalConnector = Signaling.SignalConnector;
 
 const getWindowSignature = Bundle.getWindowSignature;
-const getMetawindows = Bundle.getMetawindows;
+const getWindowHash = Bundle.getWindowHash;
+const getMetawindows = Polygnome.getMetawindows;
 const getWorkspaceWindowsArray = Polygnome.getWorkspaceWindowsArray;
 const getWorkspaces = Polygnome.getWorkspaces;
 
@@ -60,8 +61,7 @@ function onCornerChanged() {
 }
 
 function onWindowChanged(preview, window) {
-    // FIXME: must use some kind of obscured lastWindowHash for privacy
-    settings.lastWindowHash = window && getWindowSignature(window) || "";
+    settings.lastWindowHash = getWindowHash(window);
 }
 
 function onSettingsChanged(settings, property) {
@@ -75,7 +75,7 @@ function previewLastWindow(preview) {
 
     const lastWindowHash = settings.lastWindowHash;
 
-        log("First Run " + lastWindowHash);
+    log("First Run " + lastWindowHash);
 
     if (! lastWindowHash) return;
 
@@ -84,10 +84,9 @@ function previewLastWindow(preview) {
     let done, timer;
 
     function shouldBePreviewed(anyWindow) {
+        log(getWindowHash(anyWindow) + " - " + getWindowSignature(anyWindow));
     //    log(getWindowSignature(anyWindow), lastWindowHash);
-        if (!done && lastWindowHash === getWindowSignature(anyWindow)) {
-            log("ACCENDO LA FINESTRA");
-            log(anyWindow.get_title());
+        if (!done && lastWindowHash === getWindowHash(anyWindow)) {
 
             done = true;
             signals.disconnectAll();
@@ -117,7 +116,7 @@ function previewLastWindow(preview) {
         });
     }
     else {
-        log("Senza finestre, use eventi")
+
         getWorkspaces().forEach(function (workspace) {
             signals.tryConnectAfter(workspace, "window-added", function (workspace, window) {
                 shouldBePreviewed(window);
@@ -129,7 +128,6 @@ function previewLastWindow(preview) {
             // In case the last window previewed could not be found, stop listening
             done = true;
             signals.disconnectAll();
-            log("PIPISTRELLO")
         });
     }
 }
@@ -171,8 +169,8 @@ function enable() {
 
 function disable() {
     signals.disconnectAll();
-    onWindowChanged.call(preview, preview, preview.window);
-    preview.passAway(); // FIXME
+    settings.lastWindowHash = getWindowHash(preview.window);
+    preview.passAway();
     menu.disable();
     menu.destroy();
     preview = null;
