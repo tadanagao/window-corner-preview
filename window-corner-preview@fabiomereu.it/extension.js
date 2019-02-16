@@ -61,7 +61,7 @@ function onCornerChanged() {
 }
 
 function onWindowChanged(preview, window) {
-    settings.lastWindowHash = getWindowHash(window);
+    settings.lastWindowHash = getWindowHash(preview.visible && window);
 }
 
 function onSettingsChanged(settings, property) {
@@ -169,7 +169,8 @@ function enable() {
 
 function disable() {
     signals.disconnectAll();
-    settings.lastWindowHash = getWindowHash(preview.window);
+    // Save the last window on (or off)
+    onWindowChanged.call(null, preview, preview.window);
     preview.passAway();
     menu.disable();
     menu.destroy();
