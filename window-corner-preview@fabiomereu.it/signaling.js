@@ -4,7 +4,7 @@
 const Lang = imports.lang;
 
 // Helper to disconnect more signals at once
-const SignalConnector = new Lang.Class({
+var SignalConnector = new Lang.Class({
 
     Name: "WindowCornerPreview.SignalConnector",
 

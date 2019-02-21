@@ -26,12 +26,12 @@ const CORNER_BOTTOM_RIGHT = 2;
 const CORNER_BOTTOM_LEFT = 3;
 const DEFAULT_CORNER = CORNER_TOP_RIGHT;
 
-const MIN_ZOOM = 0.10; // User shouldn't be able to make the preview too small or big, as it may break normal experience
-const MAX_ZOOM = 0.75;
-const DEFAULT_ZOOM = 0.20;
+var MIN_ZOOM = 0.10; // User shouldn't be able to make the preview too small or big, as it may break normal experience
+var MAX_ZOOM = 0.75;
+var DEFAULT_ZOOM = 0.20;
 
-const MAX_CROP_RATIO = 0.85;
-const DEFAULT_CROP_RATIO = 0.0;
+var MAX_CROP_RATIO = 0.85;
+var DEFAULT_CROP_RATIO = 0.0;
 
 const SCROLL_ACTOR_MARGIN = 0.2; // scrolling: 20% external margin to crop, 80% to zoom
 const SCROLL_ZOOM_STEP = 0.01; // 1% zoom for step
@@ -57,7 +57,7 @@ const GDK_CONTROL_MASK = 4;
 const GDK_MOD1_MASK = 8;
 const GDK_ALT_MASK = GDK_MOD1_MASK; // Most cases
 
-const WindowCornerPreview = new Lang.Class({
+var WindowCornerPreview = new Lang.Class({
 
     Name: "WindowCornerPreview.preview",
 

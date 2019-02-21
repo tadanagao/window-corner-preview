@@ -26,7 +26,7 @@ const MAX_CROP_RATIO = Preview.MAX_CROP_RATIO;
 const DEFAULT_ZOOM = Preview.DEFAULT_ZOOM;
 const DEFAULT_CROP_RATIO = Preview.DEFAULT_CROP_RATIO;
 
-const WindowCornerIndicator = new Lang.Class({
+var WindowCornerIndicator = new Lang.Class({
 
     Name: "WindowCornerPreview.indicator",
     Extends: PanelMenu.Button,
