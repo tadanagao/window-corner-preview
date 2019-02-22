@@ -75,8 +75,6 @@ function previewLastWindow(preview) {
 
     const lastWindowHash = settings.lastWindowHash;
 
-    log("First Run " + lastWindowHash);
-
     if (! lastWindowHash) return;
 
     const signals = new SignalConnector();
@@ -84,8 +82,7 @@ function previewLastWindow(preview) {
     let done, timer;
 
     function shouldBePreviewed(anyWindow) {
-        log(getWindowHash(anyWindow) + " - " + getWindowSignature(anyWindow));
-    //    log(getWindowSignature(anyWindow), lastWindowHash);
+
         if (!done && lastWindowHash === getWindowHash(anyWindow)) {
 
             done = true;
