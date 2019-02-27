@@ -24,3 +24,29 @@ function spliceTitle(text, max) {
         return text;
     }
 };
+
+function getWindowSignature(metawindow) {
+    return "".concat(
+        metawindow.get_pid(),
+        metawindow.get_wm_class(),
+        metawindow.get_title()//,
+    //    metawindow.get_stable_sequence()
+    );
+}
+
+function getWindowHash(metawindow) {
+    return metawindow ? sdbm(getWindowSignature(metawindow)).toString(36) : "";
+}
+
+// https://github.com/sindresorhus/sdbm
+function sdbm(string) {
+
+    let hash = 0;
+
+    for (let i = 0; i < string.length; i++) {
+        hash = string.charCodeAt(i) + (hash << 6) + (hash << 16) - hash;
+    }
+
+    // Convert it to an unsigned 32-bit integer
+	return hash >>> 0;
+}

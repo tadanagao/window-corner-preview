@@ -15,10 +15,8 @@ const Bundle = Me.imports.bundle;
 const Polygnome = Me.imports.polygnome;
 const Preview = Me.imports.preview;
 
-// Wrapper for GNOME display cross versions
-const DisplayWrapper = Polygnome.DisplayWrapper;
-
 // Utilities
+const getWorkspaceWindowsArray = Polygnome.getWorkspaceWindowsArray;
 const spliceTitle = Bundle.spliceTitle;
 
 // Preview default values
@@ -28,27 +26,7 @@ const MAX_CROP_RATIO = Preview.MAX_CROP_RATIO;
 const DEFAULT_ZOOM = Preview.DEFAULT_ZOOM;
 const DEFAULT_CROP_RATIO = Preview.DEFAULT_CROP_RATIO;
 
-// Result: [{windows: [{win1}, {win2}, ...], workspace: {workspace}, index: nWorkspace, isActive: true|false}, ..., {...}]
-// Omit empty (with no windows) workspaces from the array
-function getWorkspaceWindowsArray() {
-    let array = [];
-
-    let wsActive = DisplayWrapper.getWorkspaceManager().get_active_workspace_index();
-
-    for (let i = 0; i < DisplayWrapper.getWorkspaceManager().n_workspaces; i++) {
-        let workspace = DisplayWrapper.getWorkspaceManager().get_workspace_by_index(i);
-        let windows = workspace.list_windows();
-        if (windows.length) array.push({
-            workspace: workspace,
-            windows: windows,
-            index: i,
-            isActive: (i === wsActive)
-        });
-    }
-    return array;
-};
-
-const WindowCornerIndicator = new Lang.Class({
+var WindowCornerIndicator = new Lang.Class({
 
     Name: "WindowCornerPreview.indicator",
     Extends: PanelMenu.Button,
@@ -59,7 +37,7 @@ const WindowCornerIndicator = new Lang.Class({
 
     // Handler to turn preview on / off
     _onMenuIsEnabled: function(item) {
-        this.preview.toggle(item.state);
+        (item.state) ? this.preview.show() : this.preview.hide();
     },
 
     _updateSliders: function() {
@@ -99,7 +77,7 @@ const WindowCornerIndicator = new Lang.Class({
     _onBottomCropChanged: function(source, value) {
         this.preview.bottomCrop = value;
         this._updateSliders();
-        this.preview.emit("crop-changed");            
+        this.preview.emit("crop-changed");
     },
 
     _onSettings: function() {
@@ -108,8 +86,9 @@ const WindowCornerIndicator = new Lang.Class({
 
     // Update windows list and other menus before menu pops up
     _onUserTriggered: function() {
-        this.menuIsEnabled.setToggleState(this.preview.enabled);
-        this._updateSliders();
+        this.menuIsEnabled.setToggleState(this.preview.visible);
+        this.menuIsEnabled.actor.reactive = this.preview.window;
+        this._updateSliders()
         this.menuWindows.menu.removeAll();
         getWorkspaceWindowsArray().forEach(function(workspace, i) {
             if (i > 0) {

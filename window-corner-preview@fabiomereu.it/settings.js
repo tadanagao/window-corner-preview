@@ -10,16 +10,17 @@ const Me = ExtensionUtils.getCurrentExtension();
 const Convenience = Me.imports.convenience;
 
 // Schema keys
-const SETTING_BEHAVIOR_MODE = "behavior-mode";
-const SETTING_FOCUS_HIDDEN = "focus-hidden";
-const SETTING_INITIAL_ZOOM = "initial-zoom";
-const SETTING_INITIAL_LEFT_CROP = "initial-left-crop";
-const SETTING_INITIAL_RIGHT_CROP = "initial-right-crop";
-const SETTING_INITIAL_TOP_CROP = "initial-top-crop";
-const SETTING_INITIAL_BOTTOM_CROP = "initial-bottom-crop";
-const SETTING_INITIAL_CORNER = "initial-corner";
+var SETTING_BEHAVIOR_MODE = "behavior-mode";
+var SETTING_FOCUS_HIDDEN = "focus-hidden";
+var SETTING_INITIAL_ZOOM = "initial-zoom";
+var SETTING_INITIAL_LEFT_CROP = "initial-left-crop";
+var SETTING_INITIAL_RIGHT_CROP = "initial-right-crop";
+var SETTING_INITIAL_TOP_CROP = "initial-top-crop";
+var SETTING_INITIAL_BOTTOM_CROP = "initial-bottom-crop";
+var SETTING_INITIAL_CORNER = "initial-corner";
+var SETTING_LAST_WINDOW_HASH = "last-window-hash";
 
-const WindowCornerSettings = new Lang.Class({
+var WindowCornerSettings = new Lang.Class({
 
     Name: "WindowCornerPreview.settings",
 
@@ -98,6 +99,14 @@ const WindowCornerSettings = new Lang.Class({
 
     set behaviorMode(value) {
         this._settings.set_string(SETTING_BEHAVIOR_MODE, value);
+    },
+
+    get lastWindowHash() {
+        return this._settings.get_string(SETTING_LAST_WINDOW_HASH);
+    },
+
+    set lastWindowHash(value) {
+        this._settings.set_string(SETTING_LAST_WINDOW_HASH, value);
     }
 });
 

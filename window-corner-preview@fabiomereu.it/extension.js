@@ -22,6 +22,7 @@
 // Global modules
 const Lang = imports.lang;
 const Main = imports.ui.main;
+const Mainloop = imports.mainloop;
 
 // Internal modules
 const ExtensionUtils = imports.misc.extensionUtils;
@@ -30,11 +31,19 @@ const Preview = Me.imports.preview;
 const Indicator = Me.imports.indicator;
 const Settings = Me.imports.settings;
 const Signaling = Me.imports.signaling;
+const Bundle = Me.imports.bundle;
+const Polygnome = Me.imports.polygnome;
 
 const WindowCornerPreview = Preview.WindowCornerPreview;
 const WindowCornerIndicator = Indicator.WindowCornerIndicator;
 const WindowCornerSettings = Settings.WindowCornerSettings;
 const SignalConnector = Signaling.SignalConnector;
+
+const getWindowSignature = Bundle.getWindowSignature;
+const getWindowHash = Bundle.getWindowHash;
+const getMetawindows = Polygnome.getMetawindows;
+const getWorkspaceWindowsArray = Polygnome.getWorkspaceWindowsArray;
+const getWorkspaces = Polygnome.getWorkspaces;
 
 function onZoomChanged() {
     settings.initialZoom = this.zoom;
@@ -51,10 +60,72 @@ function onCornerChanged() {
     settings.initialCorner = this.corner;
 }
 
+function onWindowChanged(preview, window) {
+    settings.lastWindowHash = getWindowHash(preview.visible && window);
+}
+
 function onSettingsChanged(settings, property) {
     if (["focusHidden"].indexOf(property) > -1) {
         // this = preview
         this[property] = settings[property];
+    }
+}
+
+function previewLastWindow(preview) {
+
+    const lastWindowHash = settings.lastWindowHash;
+
+    if (! lastWindowHash) return;
+
+    const signals = new SignalConnector();
+
+    let done, timer;
+
+    function shouldBePreviewed(anyWindow) {
+
+        if (!done && lastWindowHash === getWindowHash(anyWindow)) {
+
+            done = true;
+            signals.disconnectAll();
+
+            if (timer) {
+                Mainloop.source_remove(timer);
+                timer = null;
+            }
+
+            // I don't know exactly the reason, but some windows
+            // do not get shown properly without putting this on async
+            // The thumbnail seems not to be ready yet
+            Mainloop.timeout_add(100, function () {
+                preview.window = anyWindow;
+                preview.show();
+            });
+        }
+    }
+
+    // If the Extension is firstly activated the window list is empty [] and will
+    // be filled in shortly, instead if it's enabled later (like via Tweak tool)
+    // the array is already filled
+    const windows = getMetawindows();
+    if (windows.length) {
+        windows.forEach(function (window) {
+            shouldBePreviewed(window);
+        });
+    }
+    else {
+
+        getWorkspaces().forEach(function (workspace) {
+            signals.tryConnectAfter(workspace, "window-added", function (workspace, window) {
+                shouldBePreviewed(window);
+            });
+        });
+
+        const TIMEOUT = 10000;
+        timer = Mainloop.timeout_add(TIMEOUT, function () {
+            // In case the last window previewed could not be found, stop listening
+            done = true;
+            signals.disconnectAll();
+        });
     }
 }
 
@@ -72,6 +143,7 @@ function enable() {
     signals.tryConnect(preview, "zoom-changed", Lang.bind(preview, onZoomChanged));
     signals.tryConnect(preview, "crop-changed", Lang.bind(preview, onCropChanged));
     signals.tryConnect(preview, "corner-changed", Lang.bind(preview, onCornerChanged));
+    signals.tryConnect(preview, "window-changed", Lang.bind(preview, onWindowChanged));
 
     // Initialize props
     preview.zoom = settings.initialZoom;
@@ -87,11 +159,16 @@ function enable() {
 
     menu.enable();
     Main.panel.addToStatusArea("WindowCornerIndicator", menu);
-}
+
+    // The last window being previewed is reactivate
+    previewLastWindow(preview);
+ }
 
 function disable() {
-    preview.passAway();
     signals.disconnectAll();
+    // Save the last window on (or off)
+    onWindowChanged.call(null, preview, preview.window);
+    preview.passAway();
     menu.disable();
     menu.destroy();
     preview = null;

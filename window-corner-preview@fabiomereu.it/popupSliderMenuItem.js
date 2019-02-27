@@ -15,7 +15,7 @@ const Bundle = Me.imports.bundle;
 const normalizeRange = Bundle.normalizeRange;
 const deNormalizeRange = Bundle.deNormalizeRange;
 
-const PopupSliderMenuItem = new Lang.Class({
+var PopupSliderMenuItem = new Lang.Class({
     Name: "WindowCornerPreview.PopupSliderMenuItem",
     Extends: PopupMenu.PopupBaseMenuItem,
 
