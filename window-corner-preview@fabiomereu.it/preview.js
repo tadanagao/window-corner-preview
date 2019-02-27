@@ -99,8 +99,8 @@ var WindowCornerPreview = new Lang.Class({
         let button = event.get_button();
         let state = event.get_state();
 
-        // CTRL + LEFT BUTTON activate the window on top
-        if (button === GTK_MOUSE_LEFT_BUTTON && (state & GDK_CONTROL_MASK)) {
+        // SHIFT + LEFT BUTTON activate the window on top
+        if (button === GTK_MOUSE_LEFT_BUTTON && (state & GDK_SHIFT_MASK)) {
             this._window.activate(global.get_current_time());
         }
 
