@@ -80,14 +80,56 @@ var WindowCornerIndicator = new Lang.Class({
         this.preview.emit("crop-changed");
     },
 
+    _onClearCropActivate: function(source) {
+        this.preview.topCrop = 0.0;
+        this.preview.leftCrop = 0.0;
+        this.preview.rightCrop = 0.0;
+        this.preview.bottomCrop = 0.0;
+        this._updateSliders();
+        this.preview.emit("crop-changed");
+    },
+
+    _onCornerActivate: function(source, event, corner) {
+        this.preview.corner = corner;
+        this._updateSliders();
+        this.preview.emit("corner-changed");
+    },
+
     _onSettings: function() {
         Main.Util.trySpawnCommandLine("gnome-shell-extension-prefs window-corner-preview@fabiomereu.it");
+    },
+
+    _onWindowActivate: function() {
+        if (this.preview.window) {
+            this.preview.window.activate(global.get_current_time());
+        }
     },
 
     // Update windows list and other menus before menu pops up
     _onUserTriggered: function() {
         this.menuIsEnabled.setToggleState(this.preview.visible);
         this.menuIsEnabled.actor.reactive = this.preview.window;
+        this.menuActivate.actor.visible = this.preview.visible;
+        this.menuActivate.label.set_text(
+            ["◪", "⬕", "◩", "⬔"][this.preview.corner] + " " +
+            spliceTitle(this.preview.window && this.preview.window.get_title())
+        );
+        this.menuTopLeftCorner.label.set_text(
+            (this.preview.corner == 0 ? "⬉" : "⬁") + "\t" +
+            "Top Left"
+        );
+        this.menuTopRightCorner.label.set_text(
+            (this.preview.corner == 1 ? "⬈" : "⬀") + "\t" +
+            "Top Right"
+        );
+        this.menuBottomRightCorner.label.set_text(
+            (this.preview.corner == 2 ? "⬊" : "⬂") + "\t" +
+            "Bottom Right"
+        );
+        this.menuBottomLeftCorner.label.set_text(
+            (this.preview.corner == 3 ? "⬋" : "⬃") + "\t" +
+            "Bottom Left"
+        );
         this._updateSliders()
         this.menuWindows.menu.removeAll();
         getWorkspaceWindowsArray().forEach(function(workspace, i) {
@@ -128,6 +170,12 @@ var WindowCornerIndicator = new Lang.Class({
         this.menu.addMenuItem(this.menuIsEnabled);
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
+        // 1.5 Activate Mirrored window
+        this.menuActivate = new PopupMenu.PopupMenuItem("Activate");
+        this.menuActivate.connect("activate", Lang.bind(this, this._onWindowActivate));
+        this.menu.addMenuItem(this.menuActivate);
+        this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+
         // 2. Windows list
         this.menuWindows = new PopupMenu.PopupSubMenuMenuItem("Windows");
         this.menu.addMenuItem(this.menuWindows);
@@ -164,9 +212,34 @@ var WindowCornerIndicator = new Lang.Class({
         this.menuBottomCrop = new PopupSliderMenuItem("Bottom", DEFAULT_CROP_RATIO, 0.0, MAX_CROP_RATIO);
         this.menuBottomCrop.connect("value-changed", Lang.bind(this, this._onBottomCropChanged));
         this.menuCrop.menu.addMenuItem(this.menuBottomCrop);
+
+        this.menuClearCrop = new PopupMenu.PopupMenuItem("Clear");
+        this.menuClearCrop.connect("activate", Lang.bind(this, this._onClearCropActivate));
+        this.menuCrop.menu.addMenuItem(this.menuClearCrop);
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
-        // 5. Settings
+        // 5. Corner
+        this.menuCorner = new PopupMenu.PopupSubMenuMenuItem("Corner");
+        this.menu.addMenuItem(this.menuCorner);
+        this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+
+        this.menuTopRightCorner = new PopupMenu.PopupMenuItem("");
+        this.menuTopRightCorner.connect("activate", Lang.bind(this, this._onCornerActivate, 1));
+        this.menuCorner.menu.addMenuItem(this.menuTopRightCorner);
+
+        this.menuBottomRightCorner = new PopupMenu.PopupMenuItem("");
+        this.menuBottomRightCorner.connect("activate", Lang.bind(this, this._onCornerActivate, 2));
+        this.menuCorner.menu.addMenuItem(this.menuBottomRightCorner);
+
+        this.menuBottomLeftCorner = new PopupMenu.PopupMenuItem("");
+        this.menuBottomLeftCorner.connect("activate", Lang.bind(this, this._onCornerActivate, 3));
+        this.menuCorner.menu.addMenuItem(this.menuBottomLeftCorner);
+
+        this.menuTopLeftCorner = new PopupMenu.PopupMenuItem("");
+        this.menuTopLeftCorner.connect("activate", Lang.bind(this, this._onCornerActivate, 0));
+        this.menuCorner.menu.addMenuItem(this.menuTopLeftCorner);
+
+        // 6. Settings
         this.menuSettings = new PopupMenu.PopupMenuItem("Settings");
         this.menuSettings.connect("activate", Lang.bind(this, this._onSettings));
         this.menu.addMenuItem(this.menuSettings);

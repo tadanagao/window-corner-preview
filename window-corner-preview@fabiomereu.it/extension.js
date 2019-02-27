@@ -65,7 +65,7 @@ function onWindowChanged(preview, window) {
 }
 
 function onSettingsChanged(settings, property) {
-    if (["focusHidden"].indexOf(property) > -1) {
+    if (["focusHidden", "behaviorMode"].indexOf(property) > -1) {
         // this = preview
         this[property] = settings[property];
     }
@@ -153,6 +153,7 @@ function enable() {
     preview.bottomCrop = settings.initialBottomCrop;
     preview.focusHidden = settings.focusHidden;
     preview.corner = settings.initialCorner;
+    preview.behaviorMode = settings.behaviorMode;
 
     menu = new WindowCornerIndicator();
     menu.preview = preview;

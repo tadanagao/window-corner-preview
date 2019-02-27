@@ -15,7 +15,7 @@ function deNormalizeRange(normal, min, max, step) {
 
 // Truncate too long window titles on the menu
 function spliceTitle(text, max) {
-    text = text || "";
+    text = String(text || "");
     max = max || 25;
     if (text.length > max) {
         return text.substr(0, max - 2) + "...";
