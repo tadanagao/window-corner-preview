@@ -3,7 +3,7 @@
 // Global modules
 const Lang = imports.lang;
 const St = imports.gi.St;
-const Main = imports.ui.main;
+const Util = imports.misc.util;
 const PanelMenu = imports.ui.panelMenu;
 const PopupMenu = imports.ui.popupMenu;
 
@@ -96,7 +96,7 @@ var WindowCornerIndicator = new Lang.Class({
     },
 
     _onSettings: function() {
-        Main.Util.trySpawnCommandLine("gnome-shell-extension-prefs window-corner-preview@fabiomereu.it");
+        Util.trySpawnCommandLine("gnome-shell-extension-prefs window-corner-preview@fabiomereu.it");
     },
 
     _onWindowActivate: function() {
