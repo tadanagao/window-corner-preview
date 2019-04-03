@@ -15,11 +15,17 @@ const Bundle = Me.imports.bundle;
 const normalizeRange = Bundle.normalizeRange;
 const deNormalizeRange = Bundle.deNormalizeRange;
 
+/*
 var PopupSliderMenuItem = new Lang.Class({
     Name: "WindowCornerPreview.PopupSliderMenuItem",
     Extends: PopupMenu.PopupBaseMenuItem,
+*/
 
-    _init: function(text, value, min, max, step, params) {
+var PopupSliderMenuItem = class extends PopupMenu.PopupBaseMenuItem {
+
+    constructor(text, value, min, max, step, params) {
+
+        super(Object.assign({}, params, {activate: false}));
 
         this.min = (min !== undefined ? min : 0.0);
         this.max = (max !== undefined ? max : 1.0);
@@ -27,11 +33,6 @@ var PopupSliderMenuItem = new Lang.Class({
         // *** KNOWN ISSUE: Scrolling may get stucked if step value > 1.0 (and |min-max| is a low value)
         // due to const SLIDER_SCROLL_STEP = 0.02 on js/ui/slider.js ***
         this.step = step;
-        params = params || {};
-
-        params.activate = false;
-
-        this.parent(params);
 
         this.label = new St.Label({
             text: text || ""
@@ -57,14 +58,14 @@ var PopupSliderMenuItem = new Lang.Class({
             expand: true,
             align: St.Align.END
         });
-    },
+    }
 
     get value() {
         return deNormalizeRange(this.slider.value, this.min, this.max, this.step);
-    },
+    }
 
     set value(newValue) {
         this._lastValue = normalizeRange(newValue, this.min, this.max, this.step);
         this.slider.setValue(this._lastValue);
     }
-});
+}

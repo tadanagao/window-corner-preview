@@ -665,11 +665,10 @@ var WindowCornerPreview = new Lang.Class({
         this._container.visible = false;
         Main.layoutManager.addChrome(this._container);
 
-        return;
         // isSwitchingWindow = false means user only changed window, but preview was on, so does not animate
-        this._adjustVisibility({
-            noAnimate: isSwitchingWindow
-        });
+        // this._adjustVisibility({
+        //      noAnimate: isSwitchingWindow
+        // });
     },
 
     disable: function() {

@@ -47,7 +47,7 @@ var Rectangle = new Lang.Class({
         this._y1 = y1;
     },
 
-    offset: function(dX, dY) {
+    offset: function() {
         let dX = 0, dY = 0;
 
         if (arguments.length > 1) {
