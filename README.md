@@ -2,7 +2,7 @@
 GNOME Shell extension that creates a window preview and anchors it to a corner of the screen.  
 May be useful to watch YouTube videos while working, or any kind of video or movie.
 
-**Window Corner Preview** is an extension for GNOME > 3.10. Find this extension on the [GNOME extensions repository](https://extensions.gnome.org/extension/1227/window-corner-preview/).
+**Window Corner Preview** is an extension for GNOME > 3.10 (for 3.32 please [see this issue](https://github.com/medenagan/window-corner-preview/issues/14). Find this extension on the [GNOME extensions repository](https://extensions.gnome.org/extension/1227/window-corner-preview/).
 
 ## Usage
 **Picking a window up**  
