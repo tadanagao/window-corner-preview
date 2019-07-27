@@ -13,9 +13,13 @@ const ExtensionUtils = imports.misc.extensionUtils;
 const Me = ExtensionUtils.getCurrentExtension();
 const Polygnome = Me.imports.polygnome;
 const Signaling = Me.imports.signaling;
+const Sensitive = Me.imports.sensitive;
+const Shape = Me.imports.shape;
 
 const DisplayWrapper = Polygnome.DisplayWrapper;
 const SignalConnector = Signaling.SignalConnector;
+const SensitiveArea = Sensitive.Area;
+const Rectangle = Shape.Rectangle;
 
 // At the moment magnification hasn't been tested and it's clumsy
 const SETTING_MAGNIFICATION_ALLOWED = false;
@@ -57,6 +61,11 @@ const GDK_CONTROL_MASK = 4;
 const GDK_MOD1_MASK = 8;
 const GDK_ALT_MASK = GDK_MOD1_MASK; // Most cases
 
+const BEHAVIOR_SEETHROUGH = "seethrough";
+const BEHAVIOR_AUTOHIDE = "autohide";
+const BEHAVIOR_LIST = [BEHAVIOR_SEETHROUGH, BEHAVIOR_AUTOHIDE];
+const DEFAULT_BEHAVIOR = BEHAVIOR_SEETHROUGH;
+
 var WindowCornerPreview = new Lang.Class({
 
     Name: "WindowCornerPreview.preview",
@@ -71,6 +80,8 @@ var WindowCornerPreview = new Lang.Class({
         this._topCrop = DEFAULT_CROP_RATIO;
         this._bottomCrop = DEFAULT_CROP_RATIO;
 
+        this._behaviorMode = DEFAULT_BEHAVIOR;
+
         // The following properties are documented on _adjustVisibility()
         this._naturalVisibility = false;
         this._focusHidden = true;
@@ -81,7 +92,7 @@ var WindowCornerPreview = new Lang.Class({
         this._windowSignals = new SignalConnector();
         this._environmentSignals = new SignalConnector();
 
-        this._handleZoomChange = null;
+        this._outsideArea = new SensitiveArea();
     },
 
     _onClick: function(actor, event) {
@@ -116,6 +127,16 @@ var WindowCornerPreview = new Lang.Class({
         }
     },
 
+    _getRectangle: function() {
+        if (! this._container)
+            return new Rectangle();
+
+        const [x, y] = this._container.get_transformed_position();
+        const [width, height] = this._container.get_transformed_size();
+
+        return new Rectangle(x, y, width, height);
+    },
+
     _onScroll: function(actor, event) {
         let scroll_direction = event.get_scroll_direction();
 
@@ -148,11 +169,10 @@ var WindowCornerPreview = new Lang.Class({
         // Coords are absolute, screen related
         let [mouseX, mouseY] = event.get_coords();
 
-        // _container absolute rect
-        let [actorX1, actorY1] = this._container.get_transformed_position();
-        let [actorWidth, actorHeight] = this._container.get_transformed_size();
-        let actorX2 = actorX1 + actorWidth;
-        let actorY2 = actorY1 + actorHeight;
+        const actorRect = this._getRectangle();
+        const [actorX1, actorY1, actorX2, actorY2] = actorRect.getXY();
+        const actorWidth = actorRect.width;
+        const actorHeight = actorRect.height;
 
         // Distance of pointer from each side
         let deltaLeft = Math.abs(actorX1 - mouseX);
@@ -211,19 +231,37 @@ var WindowCornerPreview = new Lang.Class({
             return; // Clutter.EVENT_PROPAGATE;
         }
 
-        Tweener.addTween(this._container, {
-            opacity: TWEEN_OPACITY_TENTH,
-            time: TWEEN_TIME_MEDIUM,
-            transition: "easeOutQuad"
-        });
+        if (this._behaviorMode === BEHAVIOR_AUTOHIDE) {
+            const rectangle = this._getRectangle();
+            this._outsideArea.tester = function (x, y) {
+                return !rectangle.isPointInside(x, y);
+            }
+            this._autohidden = true;
+            this._adjustVisibility();
+        }
+
+        else { // BEHAVIOR_SEETHROUGH
+            Tweener.addTween(this._container, {
+                opacity: TWEEN_OPACITY_TENTH,
+                time: TWEEN_TIME_MEDIUM,
+                transition: "easeOutQuad"
+            });
+        }
     },
 
     _onLeave: function() {
-        Tweener.addTween(this._container, {
-            opacity: TWEEN_OPACITY_FULL,
-            time: TWEEN_TIME_MEDIUM,
-            transition: "easeOutQuad"
-        });
+
+        if (this._behaviorMode === BEHAVIOR_AUTOHIDE) {
+            this._autohidden = false;
+            this._adjustVisibility();
+        }
+        else { // BEHAVIOR_SEETHROUGH
+            Tweener.addTween(this._container, {
+                opacity: TWEEN_OPACITY_FULL,
+                time: TWEEN_TIME_MEDIUM,
+                transition: "easeOutQuad"
+            });
+        }
     },
 
     _onParamsChange: function() {
@@ -243,10 +281,15 @@ var WindowCornerPreview = new Lang.Class({
 
         /*
             [Boolean] this._naturalVisibility:
-                        true === show the preview whenever is possible;
-                        false === don't show it in any case
+                        true === .show() or similar was called programatically;
+                        false === .hide() or similar was called programatically;
+
             [Boolean] this._focusHidden:
                         true === hide in case the mirrored window should be active
+
+            [Booleant] this._autohidden: (only in BEHAVIOR_AUTOHIDE)
+                        true === assume the pointer moving on the preview area;
+                        false === assume the pointer outside the preview space;
 
             options = {
                 onComplete: [function] to call once the process is done.
@@ -270,7 +313,8 @@ var WindowCornerPreview = new Lang.Class({
         let calculatedVisibility = this._window &&
             this._naturalVisibility &&
             canBeShownOnFocus &&
-            (! Main.overview.visibleTarget);
+            (! Main.overview.visibleTarget) &&
+            !(this._behaviorMode === BEHAVIOR_AUTOHIDE && this._autohidden);
 
         let calculatedOpacity = (calculatedVisibility) ? TWEEN_OPACITY_FULL : TWEEN_OPACITY_NULL;
 
@@ -514,6 +558,21 @@ var WindowCornerPreview = new Lang.Class({
         return this._focusHidden;
     },
 
+    set behaviorMode(value) {
+        if (BEHAVIOR_LIST.indexOf(value) > -1) {
+            this._behaviorMode = value;
+            this._autohidden = false;
+            this._adjustVisibility();
+        }
+        else {
+            logError(new Error(value), "Preview.behaviorMode: type mismatch");
+        }
+    },
+
+    get behaviorMode() {
+        return this._behaviorMode || DEFAULT_BEHAVIOR;
+    },
+
     set corner(value) {
         this._corner = (value %= 4) < 0 ? (value + 4) : (value);
         this._setPosition();
@@ -603,6 +662,7 @@ var WindowCornerPreview = new Lang.Class({
 
         this._container.connect("enter-event", Lang.bind(this, this._onEnter));
         this._container.connect("leave-event", Lang.bind(this, this._onLeave));
+        this._outsideArea.connect("enter-event", Lang.bind(this, this._onLeave));
         // Don't use button-press-event, as set_position conflicts and Gtk would react for enter and leave event of ANY item on the chrome area
         this._container.connect("button-release-event", Lang.bind(this, this._onClick));
         this._container.connect("scroll-event", Lang.bind(this, this._onScroll));
@@ -621,6 +681,7 @@ var WindowCornerPreview = new Lang.Class({
 
         this._windowSignals.disconnectAll();
         this._environmentSignals.disconnectAll();
+        this._outsideArea.tester = null;
 
         if (! this._container) return;
 
