@@ -23,6 +23,8 @@
 const Lang = imports.lang;
 const Main = imports.ui.main;
 const Mainloop = imports.mainloop;
+const Meta = imports.gi.Meta;
+const Shell = imports.gi.Shell;
 
 // Internal modules
 const ExtensionUtils = imports.misc.extensionUtils;
@@ -159,6 +161,7 @@ function enable() {
 
     menu.enable();
     Main.panel.addToStatusArea("WindowCornerIndicator", menu);
+    Main.wm.addKeybinding("toggle-preview", settings._settings, Meta.KeyBindingFlags.NONE, Shell.ActionMode.NORMAL, Lang.bind(preview, preview.toggle));
 
     // The last window being previewed is reactivate
     previewLastWindow(preview);
@@ -169,6 +172,7 @@ function disable() {
     // Save the last window on (or off)
     onWindowChanged.call(null, preview, preview.window);
     preview.passAway();
+    Main.wm.removeKeybinding('toggle-preview');
     menu.disable();
     menu.destroy();
     preview = null;

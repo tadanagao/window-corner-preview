@@ -64,5 +64,10 @@
 			<summary>Last Window</summary>
 			<description>Last Window Hash</description>
 		</key>
+	<key name="toggle-preview" type="as">
+			<default><![CDATA[['<Alt><Shift>3']]]></default>
+			<summary>Key Bindings for Toggling the Preview</summary>
+			<description>Key Bindings for Toggling the Preview</description>
+		</key>
 	</schema>
 </schemalist>
